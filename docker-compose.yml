@@ -1,0 +1,88 @@
+# Docker Compose ファイル
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: gunchart_postgres
+    environment:
+      POSTGRES_DB: gunchart_db
+      POSTGRES_USER: gunchart_user
+      POSTGRES_PASSWORD: gunchart_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - gunchart_network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: gunchart_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - gunchart_network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: gunchart_backend
+    ports:
+      - "8002:8000"
+    environment:
+      DATABASE_URL: postgresql://gunchart_user:gunchart_password@postgres:5432/gunchart_db
+    depends_on:
+      - postgres
+    volumes:
+      - ./backend:/app
+    networks:
+      - gunchart_network
+
+  # BFF API
+  bff:
+    build:
+      context: ./bff
+      dockerfile: Dockerfile
+    container_name: gunchart_bff
+    ports:
+      - "8001:8000"
+    environment:
+      BACKEND_URL: http://backend:8000
+      REDIS_HOST: redis
+    depends_on:
+      - backend
+      - redis
+    volumes:
+      - ./bff:/app
+    networks:
+      - gunchart_network
+
+  # Frontend (development mode)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: gunchart_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_BFF_URL: http://bff:8000
+    depends_on:
+      - bff
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - gunchart_network
+
+volumes:
+  postgres_data:
+
+networks:
+  gunchart_network:
+    driver: bridge
