@@ -1,22 +1,36 @@
-FROM python:3.11-slim
+FROM python:3.13-slim-bookworm AS base
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    libpq-dev \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq-dev libpng-dev gcc build-essential python3-dev \
+    libjpeg-dev zlib1g-dev libfreetype6-dev liblcms2-dev libopenjp2-7-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install dependencies
 COPY requirements.txt .
+
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+
+# Development stage
+FROM base AS development
+
 COPY . .
 
-# Expose port
-EXPOSE 8000
+EXPOSE 8080
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8080"]
 
-# Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+# Production stage
+FROM base AS production
+
+COPY . .
+
+# Collect static files
+RUN python manage.py collectstatic --noinput
+
+EXPOSE 8080
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "project.wsgi:application"]

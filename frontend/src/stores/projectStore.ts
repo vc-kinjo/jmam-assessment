@@ -1,156 +1,191 @@
-// プロジェクト管理ストア
-
 import { create } from 'zustand';
-import { Project, ProjectSummary } from '@/types/project';
-import { ProjectService } from '@/services/projectService';
-import { useNotificationStore } from './notification';
+import { Project } from '../types/index';
+import { projectAPI } from '../services/api';
 
 interface ProjectState {
   projects: Project[];
-  projectSummaries: ProjectSummary[];
-  selectedProject: Project | null;
-  loading: boolean;
+  currentProject: Project | null;
+  isLoading: boolean;
   error: string | null;
 
   // Actions
-  fetchProjects: (params?: { skip?: number; limit?: number; status?: string }) => Promise<void>;
-  fetchProjectSummaries: () => Promise<void>;
-  fetchProject: (projectId: number) => Promise<void>;
-  createProject: (projectData: any) => Promise<boolean>;
-  updateProject: (projectId: number, projectData: any) => Promise<boolean>;
-  deleteProject: (projectId: number) => Promise<boolean>;
-  clearSelectedProject: () => void;
+  fetchProjects: () => Promise<void>;
+  fetchProject: (id: number) => Promise<void>;
+  createProject: (data: Partial<Project>) => Promise<Project>;
+  updateProject: (id: number, data: Partial<Project>) => Promise<Project>;
+  deleteProject: (id: number) => Promise<void>;
+  setCurrentProject: (project: Project | null) => void;
   clearError: () => void;
 }
 
-export const useProjectStore = create<ProjectState>((set, get) => ({
-  projects: [],
-  projectSummaries: [],
-  selectedProject: null,
-  loading: false,
-  error: null,
+export const useProjectStore = create<ProjectState>((set, get) => {
+  let isInitialized = false;
 
-  fetchProjects: async (params = {}) => {
-    set({ loading: true, error: null });
-    try {
-      const response = await ProjectService.getProjects(params);
-      if (response.success) {
-        set({ projects: response.data.projects, loading: false });
-      } else {
-        set({ error: response.error?.message || 'プロジェクト一覧の取得に失敗しました', loading: false });
-      }
-    } catch (error) {
-      set({ error: 'プロジェクト一覧の取得中にエラーが発生しました', loading: false });
-    }
-  },
+  return {
+    projects: [],
+    currentProject: null,
+    isLoading: false,
+    error: null,
 
-  fetchProjectSummaries: async () => {
-    set({ loading: true, error: null });
-    try {
-      const response = await ProjectService.getProjectSummaries();
-      if (response.success) {
-        set({ projectSummaries: response.data.summaries, loading: false });
-      } else {
-        set({ error: response.error?.message || 'プロジェクト概要の取得に失敗しました', loading: false });
-      }
-    } catch (error) {
-      set({ error: 'プロジェクト概要の取得中にエラーが発生しました', loading: false });
-    }
-  },
+    fetchProjects: async () => {
+      try {
+        console.log('ProjectStore.fetchProjects called');
+        const currentState = get();
 
-  fetchProject: async (projectId: number) => {
-    set({ loading: true, error: null });
-    try {
-      const response = await ProjectService.getProject(projectId);
-      if (response.success) {
-        set({ selectedProject: response.data.project, loading: false });
-      } else {
-        set({ error: response.error?.message || 'プロジェクトの取得に失敗しました', loading: false });
-      }
-    } catch (error) {
-      set({ error: 'プロジェクトの取得中にエラーが発生しました', loading: false });
-    }
-  },
-
-  createProject: async (projectData: any) => {
-    set({ loading: true, error: null });
-    try {
-      const response = await ProjectService.createProject(projectData);
-      if (response.success) {
-        useNotificationStore.getState().addNotification('success', response.data.message);
-        // プロジェクト一覧を再取得
-        await get().fetchProjects();
-        set({ loading: false });
-        return true;
-      } else {
-        set({ error: response.error?.message || 'プロジェクトの作成に失敗しました', loading: false });
-        useNotificationStore.getState().addNotification('error', response.error?.message || 'プロジェクトの作成に失敗しました');
-        return false;
-      }
-    } catch (error) {
-      set({ error: 'プロジェクトの作成中にエラーが発生しました', loading: false });
-      useNotificationStore.getState().addNotification('error', 'プロジェクトの作成中にエラーが発生しました');
-      return false;
-    }
-  },
-
-  updateProject: async (projectId: number, projectData: any) => {
-    set({ loading: true, error: null });
-    try {
-      const response = await ProjectService.updateProject(projectId, projectData);
-      if (response.success) {
-        useNotificationStore.getState().addNotification('success', response.data.message);
-        // プロジェクト一覧を再取得
-        await get().fetchProjects();
-        // 選択中のプロジェクトも更新
-        if (get().selectedProject?.id === projectId) {
-          await get().fetchProject(projectId);
+        // 既にローディング中または初期化済みでデータがある場合はスキップ
+        if (currentState.isLoading || (isInitialized && currentState.projects.length > 0 && !currentState.error)) {
+          console.log('ProjectStore.fetchProjects: Already loading or data exists, skipping');
+          return;
         }
-        set({ loading: false });
-        return true;
-      } else {
-        set({ error: response.error?.message || 'プロジェクトの更新に失敗しました', loading: false });
-        useNotificationStore.getState().addNotification('error', response.error?.message || 'プロジェクトの更新に失敗しました');
-        return false;
-      }
-    } catch (error) {
-      set({ error: 'プロジェクトの更新中にエラーが発生しました', loading: false });
-      useNotificationStore.getState().addNotification('error', 'プロジェクトの更新中にエラーが発生しました');
-      return false;
-    }
-  },
 
-  deleteProject: async (projectId: number) => {
-    set({ loading: true, error: null });
-    try {
-      const response = await ProjectService.deleteProject(projectId);
-      if (response.success) {
-        useNotificationStore.getState().addNotification('success', response.data.message);
-        // プロジェクト一覧を再取得
-        await get().fetchProjects();
-        // 選択中のプロジェクトをクリア
-        if (get().selectedProject?.id === projectId) {
-          set({ selectedProject: null });
+        isInitialized = true;
+
+      set({ isLoading: true, error: null });
+      const response = await projectAPI.getProjects();
+      console.log('Fetch projects response:', response);
+      console.log('Response data:', response.data);
+
+      // PaginatedResponseの形式の場合はresultsを取得、配列の場合はそのまま使用
+      let projects: Project[] = [];
+      if (response.data && typeof response.data === 'object') {
+        if ('results' in response.data && Array.isArray(response.data.results)) {
+          projects = response.data.results;
+          console.log('Projects from paginated response:', projects);
+        } else if (Array.isArray(response.data)) {
+          projects = response.data;
         }
-        set({ loading: false });
-        return true;
-      } else {
-        set({ error: response.error?.message || 'プロジェクトの削除に失敗しました', loading: false });
-        useNotificationStore.getState().addNotification('error', response.error?.message || 'プロジェクトの削除に失敗しました');
-        return false;
       }
-    } catch (error) {
-      set({ error: 'プロジェクトの削除中にエラーが発生しました', loading: false });
-      useNotificationStore.getState().addNotification('error', 'プロジェクトの削除中にエラーが発生しました');
-      return false;
+
+      console.log('ProjectStore.fetchProjects: Final projects array:', projects);
+      set({
+        projects: projects,
+        isLoading: false
+      });
+    } catch (error: any) {
+      console.error('Fetch projects error:', error);
+      const errorMessage = error.response?.data?.detail ||
+                          'プロジェクト一覧の取得に失敗しました';
+        set({
+          error: errorMessage,
+          isLoading: false,
+          projects: [] // エラー時は空配列に設定
+        });
+      }
+    },
+
+  fetchProject: async (id: number) => {
+    try {
+      set({ isLoading: true, error: null });
+      console.log('Fetching project with ID:', id);
+      const response = await projectAPI.getProject(id);
+      console.log('Fetched project:', response.data);
+
+      const fetchedProject = response.data;
+
+      set(state => ({
+        currentProject: fetchedProject,
+        // projects配列にも追加/更新
+        projects: Array.isArray(state.projects)
+          ? state.projects.some(p => p.id === id)
+            ? state.projects.map(p => p.id === id ? fetchedProject : p)
+            : [...state.projects, fetchedProject]
+          : [fetchedProject],
+        isLoading: false
+      }));
+    } catch (error: any) {
+      console.error('Fetch project error:', error);
+      const errorMessage = error.response?.data?.detail ||
+                          'プロジェクトの取得に失敗しました';
+      set({
+        error: errorMessage,
+        isLoading: false
+      });
     }
   },
 
-  clearSelectedProject: () => {
-    set({ selectedProject: null });
+  createProject: async (data: Partial<Project>) => {
+    try {
+      set({ isLoading: true, error: null });
+      console.log('Creating project with data:', data);
+      const response = await projectAPI.createProject(data);
+      console.log('Project creation response:', response);
+      const newProject = response.data;
+
+      set(state => ({
+        projects: Array.isArray(state.projects) ? [...state.projects, newProject] : [newProject],
+        isLoading: false
+      }));
+
+      return newProject;
+    } catch (error: any) {
+      console.error('Project creation error in store:', error);
+      console.error('Error response in store:', error.response);
+      const errorMessage = error.response?.data?.detail ||
+                          error.response?.data?.message ||
+                          error.response?.data?.error ||
+                          error.message ||
+                          'プロジェクトの作成に失敗しました';
+      set({
+        error: errorMessage,
+        isLoading: false
+      });
+      throw error;
+    }
   },
 
-  clearError: () => {
-    set({ error: null });
+  updateProject: async (id: number, data: Partial<Project>) => {
+    try {
+      set({ isLoading: true, error: null });
+      const response = await projectAPI.updateProject(id, data);
+      const updatedProject = response.data;
+
+      set(state => ({
+        projects: Array.isArray(state.projects)
+          ? state.projects.map(p => p.id === id ? updatedProject : p)
+          : [updatedProject],
+        currentProject: state.currentProject?.id === id ? updatedProject : state.currentProject,
+        isLoading: false
+      }));
+
+      return updatedProject;
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.detail ||
+                          'プロジェクトの更新に失敗しました';
+      set({
+        error: errorMessage,
+        isLoading: false
+      });
+      throw error;
+    }
   },
-}));
+
+  deleteProject: async (id: number) => {
+    try {
+      set({ isLoading: true, error: null });
+      await projectAPI.deleteProject(id);
+
+      set(state => ({
+        projects: Array.isArray(state.projects)
+          ? state.projects.filter(p => p.id !== id)
+          : [],
+        currentProject: state.currentProject?.id === id ? null : state.currentProject,
+        isLoading: false
+      }));
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.detail ||
+                          'プロジェクトの削除に失敗しました';
+      set({
+        error: errorMessage,
+        isLoading: false
+      });
+      throw error;
+    }
+  },
+
+  setCurrentProject: (project: Project | null) => {
+    set({ currentProject: project });
+  },
+
+    clearError: () => set({ error: null }),
+  };
+});
