@@ -1,64 +1,43 @@
-'use client';
-
 import React from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/stores/auth';
-import { Button } from '@/components/ui/Button';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../stores/authStore';
 
-export const Header: React.FC = () => {
-  const router = useRouter();
-  const { user, logout } = useAuthStore();
+const Header: React.FC = () => {
+  const navigate = useNavigate();
+  const { user, logout, isLoading } = useAuthStore();
 
   const handleLogout = async () => {
-    await logout();
-    router.push('/login');
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   return (
-    <header className="bg-white shadow-sm border-b">
+    <header className="bg-white shadow">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center py-6">
           <div className="flex items-center">
-            <h1 className="text-xl font-semibold text-gray-900">
-              Gunchart
+            <h1 className="text-3xl font-bold text-gray-900">
+              🔫 GunChart Dashboard
             </h1>
           </div>
-
-          <nav className="hidden md:flex space-x-8">
-            <button
-              onClick={() => router.push('/')}
-              className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-            >
-              ダッシュボード
-            </button>
-            <button
-              onClick={() => router.push('/projects')}
-              className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-            >
-              プロジェクト
-            </button>
-            <button
-              onClick={() => router.push('/tasks')}
-              className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-            >
-              タスク
-            </button>
-          </nav>
-
           <div className="flex items-center space-x-4">
             {user && (
-              <div className="flex items-center space-x-3">
-                <span className="text-sm text-gray-700">
-                  {user.full_name}
+              <>
+                <span className="text-sm text-gray-600">
+                  ようこそ、{user.full_name}さん
                 </span>
-                <Button
-                  variant="secondary"
-                  size="sm"
+                <button
                   onClick={handleLogout}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:opacity-50"
                 >
                   ログアウト
-                </Button>
-              </div>
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -66,3 +45,5 @@ export const Header: React.FC = () => {
     </header>
   );
 };
+
+export default Header;
