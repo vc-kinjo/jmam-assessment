@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json.schemastore.org/swcrc",
+  "jsc": {
+    "parser": {
+      "syntax": "typescript",
+      "tsx": true,
+      "decorators": false,
+      "dynamicImport": true
+    },
+    "transform": {
+      "react": {
+        "runtime": "automatic"
+      }
+    },
+    "target": "es2017"
+  },
+  "module": {
+    "type": "commonjs"
+  },
+  "minify": false,
+  "env": {
+    "targets": "> 0.5%, last 2 versions, not dead"
+  }
+}

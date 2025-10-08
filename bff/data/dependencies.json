@@ -1,0 +1,58 @@
+[
+  {
+    "id": 1,
+    "predecessor_id": 1,
+    "successor_id": 2,
+    "dependency_type": "finish_to_start",
+    "lag_days": 0,
+    "created_at": "2025-08-27T00:00:00Z"
+  },
+  {
+    "id": 2,
+    "predecessor_id": 2,
+    "successor_id": 3,
+    "dependency_type": "finish_to_start",
+    "lag_days": 1,
+    "created_at": "2025-08-27T00:00:00Z"
+  },
+  {
+    "id": 3,
+    "predecessor_id": 7,
+    "successor_id": 22,
+    "dependency_type": "finish_to_start",
+    "lag_days": 0,
+    "created_at": "2025-09-05T09:00:00Z"
+  },
+  {
+    "id": 4,
+    "predecessor_id": 22,
+    "successor_id": 23,
+    "dependency_type": "finish_to_start",
+    "lag_days": 0,
+    "created_at": "2025-09-05T07:51:39.697963Z"
+  },
+  {
+    "id": 5,
+    "predecessor_id": 24,
+    "successor_id": 25,
+    "dependency_type": "finish_to_start",
+    "lag_days": 0,
+    "created_at": "2025-09-09T02:50:01.309891Z"
+  },
+  {
+    "id": 6,
+    "predecessor_id": 25,
+    "successor_id": 26,
+    "dependency_type": "finish_to_start",
+    "lag_days": 0,
+    "created_at": "2025-09-09T02:50:54.829398Z"
+  },
+  {
+    "id": 7,
+    "predecessor_id": 24,
+    "successor_id": 44,
+    "dependency_type": "finish_to_start",
+    "lag_days": 0,
+    "created_at": "2025-09-25T01:55:04.330322Z"
+  }
+]

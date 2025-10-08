@@ -1,20 +1,25 @@
+'use client';
+
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuthStore } from '../../stores/authStore';
+import { useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
+import { useAuthStore } from '@/stores/auth';
 
 interface NavigationItem {
   name: string;
   href: string;
   icon: React.ReactNode;
+  current?: boolean;
 }
 
-const Navigation: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+export const Navigation: React.FC = () => {
+  const router = useRouter();
+  const pathname = usePathname();
   const { user, logout } = useAuthStore();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // ナビゲーションアイテム
   const navigationItems: NavigationItem[] = [
     {
       name: 'ダッシュボード',
@@ -45,26 +50,23 @@ const Navigation: React.FC = () => {
     }
   ];
 
+  // 現在のページをチェック
   const isCurrentPage = (href: string) => {
     if (href === '/dashboard') {
-      return location.pathname === '/' || location.pathname === '/dashboard';
+      return pathname === '/' || pathname === '/dashboard';
     }
-    return location.pathname.startsWith(href);
+    return pathname.startsWith(href);
   };
 
+  // ログアウト処理
   const handleLogout = async () => {
     try {
       await logout();
-      navigate('/login');
+      router.push('/login');
     } catch (error) {
       console.error('ログアウトエラー:', error);
     }
     setIsUserMenuOpen(false);
-  };
-
-  const handleNavigation = (href: string) => {
-    navigate(href);
-    setIsMobileMenuOpen(false);
   };
 
   if (!user) {
@@ -79,20 +81,17 @@ const Navigation: React.FC = () => {
           <div className="flex">
             {/* ロゴ */}
             <div className="flex-shrink-0 flex items-center">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="text-xl font-bold text-blue-600 hover:text-blue-700"
-              >
+              <Link href="/dashboard" className="text-xl font-bold text-blue-600">
                 GunChart
-              </button>
+              </Link>
             </div>
 
             {/* デスクトップナビゲーション */}
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               {navigationItems.map((item) => (
-                <button
+                <Link
                   key={item.name}
-                  onClick={() => handleNavigation(item.href)}
+                  href={item.href}
                   className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${
                     isCurrentPage(item.href)
                       ? 'border-blue-500 text-gray-900'
@@ -101,7 +100,7 @@ const Navigation: React.FC = () => {
                 >
                   <span className="mr-2">{item.icon}</span>
                   {item.name}
-                </button>
+                </Link>
               ))}
             </div>
           </div>
@@ -141,13 +140,11 @@ const Navigation: React.FC = () => {
                     </p>
                     <p className="text-sm text-gray-500">{user.email}</p>
                   </div>
-
-                  <button
-                    onClick={() => {
-                      navigate('/profile');
-                      setIsUserMenuOpen(false);
-                    }}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  
+                  <Link
+                    href="/profile"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setIsUserMenuOpen(false)}
                   >
                     <div className="flex items-center">
                       <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -155,11 +152,12 @@ const Navigation: React.FC = () => {
                       </svg>
                       プロフィール
                     </div>
-                  </button>
-
-                  <button
+                  </Link>
+                  
+                  <a
+                    href="#"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     onClick={() => setIsUserMenuOpen(false)}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
                     <div className="flex items-center">
                       <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -168,8 +166,8 @@ const Navigation: React.FC = () => {
                       </svg>
                       設定
                     </div>
-                  </button>
-
+                  </a>
+                  
                   <button
                     onClick={handleLogout}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -212,18 +210,19 @@ const Navigation: React.FC = () => {
         <div className="sm:hidden">
           <div className="pt-2 pb-3 space-y-1">
             {navigationItems.map((item) => (
-              <button
+              <Link
                 key={item.name}
-                onClick={() => handleNavigation(item.href)}
-                className={`flex items-center pl-3 pr-4 py-2 border-l-4 text-base font-medium w-full text-left ${
+                href={item.href}
+                className={`flex items-center pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
                   isCurrentPage(item.href)
                     ? 'bg-blue-50 border-blue-500 text-blue-700'
                     : 'border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300'
                 }`}
+                onClick={() => setIsMobileMenuOpen(false)}
               >
                 <span className="mr-3">{item.icon}</span>
                 {item.name}
-              </button>
+              </Link>
             ))}
           </div>
         </div>
@@ -239,5 +238,3 @@ const Navigation: React.FC = () => {
     </nav>
   );
 };
-
-export default Navigation;
