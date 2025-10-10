@@ -27,13 +27,20 @@ class TaskViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         # プロジェクトメンバーのタスクのみ表示
-        return Task.objects.filter(
+        queryset = Task.objects.filter(
             Q(project__members__user=user) | Q(project__created_by=user)
         ).distinct().select_related(
             'project', 'parent_task'
         ).prefetch_related(
             'assignments__user', 'subtasks', 'comments__user'
         )
+
+        # project_idパラメータによるフィルタリング
+        project_id = self.request.query_params.get('project_id')
+        if project_id:
+            queryset = queryset.filter(project_id=project_id)
+
+        return queryset
 
     @action(detail=False, methods=['get'])
     def gantt_data(self, request):
