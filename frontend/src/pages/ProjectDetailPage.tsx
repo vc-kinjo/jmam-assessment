@@ -375,8 +375,23 @@ export default function ProjectDetailPage() {
       // エラーメッセージを表示
       let errorMessage = 'タスクの削除に失敗しました';
 
-      if (error.response?.status === 500) {
-        errorMessage = `タスク「${deletedTask.name}」の削除に失敗しました。\n\nサーバーエラー（500）: このタスクに関連する依存関係（先行タスク・後続タスク・担当者）が存在する可能性があります。\n\n先に関連する依存関係を削除してから、再度お試しください。`;
+      if (error.response?.status === 400) {
+        // バックエンドからの詳細エラーメッセージを使用
+        const errorData = error.response.data;
+        if (errorData?.error) {
+          errorMessage = `タスク削除エラー: ${errorData.error}`;
+          if (errorData.details) {
+            const details = errorData.details;
+            if (details.successor_dependencies > 0 || details.predecessor_dependencies > 0) {
+              errorMessage += `\n\n詳細:\n- 先行タスクとしての依存関係: ${details.predecessor_dependencies}件\n- 後続タスクとしての依存関係: ${details.successor_dependencies}件`;
+            }
+          }
+        } else {
+          errorMessage = `タスク「${deletedTask.name}」の削除に失敗しました。\n\n${errorData?.detail || 'バリデーションエラーが発生しました。'}`;
+        }
+      } else if (error.response?.status === 500) {
+        const errorData = error.response.data;
+        errorMessage = `タスク「${deletedTask.name}」の削除に失敗しました。\n\nサーバーエラー（500）: ${errorData?.detail || 'サーバー内部でエラーが発生しました。'}`;
       } else if (error.response?.status === 404) {
         errorMessage = `タスク「${deletedTask.name}」は既に削除されています。`;
         // 404の場合はUIから削除
@@ -384,6 +399,8 @@ export default function ProjectDetailPage() {
         setShowTaskDetailModal(false);
       } else if (error.response?.data?.detail) {
         errorMessage = `タスク削除エラー: ${error.response.data.detail}`;
+      } else if (error.response?.data?.error) {
+        errorMessage = `タスク削除エラー: ${error.response.data.error}`;
       }
 
       alert(errorMessage);

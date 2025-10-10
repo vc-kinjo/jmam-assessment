@@ -117,8 +117,33 @@ class TaskViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        self.perform_destroy(instance)
-        return Response({'message': 'タスクを削除しました'}, status=status.HTTP_204_NO_CONTENT)
+        # 依存関係がある場合の処理
+        predecessor_dependencies = instance.dependencies_as_predecessor.count()
+        successor_dependencies = instance.dependencies_as_successor.count()
+
+        if predecessor_dependencies > 0 or successor_dependencies > 0:
+            return Response(
+                {
+                    'error': 'このタスクには依存関係が設定されているため削除できません。先に依存関係を削除してください。',
+                    'details': {
+                        'successor_dependencies': successor_dependencies,
+                        'predecessor_dependencies': predecessor_dependencies
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            self.perform_destroy(instance)
+            return Response({'message': 'タスクを削除しました'}, status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            return Response(
+                {
+                    'error': 'タスクの削除中にエラーが発生しました',
+                    'detail': str(e)
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     @action(detail=True, methods=['post'])
     def update_schedule(self, request, pk=None):
