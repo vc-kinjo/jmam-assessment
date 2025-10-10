@@ -17,6 +17,17 @@ export default defineConfig({
         target: 'http://api:8080',
         changeOrigin: true,
         secure: false,
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, _req, _res) => {
+            console.log('Proxy error:', err);
+          });
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            console.log('Proxy request:', req.method, req.url, '-> http://api:8080' + req.url);
+          });
+          proxy.on('proxyRes', (proxyRes, req, _res) => {
+            console.log('Proxy response:', req.method, req.url, '-> status:', proxyRes.statusCode);
+          });
+        },
       },
     },
     host: true,

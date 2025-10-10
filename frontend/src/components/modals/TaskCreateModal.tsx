@@ -524,7 +524,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                   <div className="space-y-2">
                     {formData.assigned_users
                       .map(userId => users.find(u => u.id === userId))
-                      .filter(user => user !== undefined)
+                      .filter((user): user is NonNullable<typeof user> => user !== undefined)
                       .map(user => (
                         <div key={user.id} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded">
                           <div className="flex items-center space-x-2">
