@@ -2,11 +2,17 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout/Layout';
 import { useProjectStore } from '../stores/projectStore';
+import { useTaskStore } from '../stores/taskStore';
+import TemplateSelector from '../components/templates/TemplateSelector';
+import TemplateCustomizer from '../components/templates/TemplateCustomizer';
 
 const ProjectCreatePage: React.FC = () => {
   const navigate = useNavigate();
   const { createProject, fetchProjects, isLoading } = useProjectStore();
+  const { createTask } = useTaskStore();
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  const [showTemplateCustomizer, setShowTemplateCustomizer] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
   // 空のプロジェクト作成フォーム用の状態
@@ -72,6 +78,105 @@ const ProjectCreatePage: React.FC = () => {
                           'プロジェクトの作成に失敗しました';
       setError(errorMessage);
     }
+  };
+
+  // テンプレート選択
+  const handleTemplateSelect = (template: any) => {
+    setSelectedTemplate(template);
+    setShowTemplateSelector(false);
+    setShowTemplateCustomizer(true);
+  };
+
+  // テンプレートからプロジェクト作成
+  const handleTemplateConfirm = async (templateProjectData: any) => {
+    try {
+      setError(null);
+
+      // プロジェクトを作成
+      const project = await createProject({
+        name: templateProjectData.name,
+        description: templateProjectData.description,
+        start_date: templateProjectData.start_date,
+        end_date: calculateEndDate(templateProjectData.start_date, templateProjectData.adjustedTasks),
+        category: templateProjectData.category,
+        status: 'active'
+      });
+
+      console.log('Project created successfully:', { id: project?.id, name: project?.name });
+
+      if (!project || !project.id) {
+        throw new Error('プロジェクトIDが取得できませんでした');
+      }
+
+      // タスクを作成
+      for (const templateTask of templateProjectData.adjustedTasks) {
+        const startDate = new Date(templateProjectData.start_date);
+        startDate.setDate(startDate.getDate() + templateTask.start_offset_days);
+
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + templateTask.duration_days - 1);
+
+        await createTask({
+          project: project.id,
+          name: templateTask.name,
+          description: templateTask.description || '',
+          planned_start_date: startDate.toISOString().split('T')[0],
+          planned_end_date: endDate.toISOString().split('T')[0],
+          estimated_hours: templateTask.estimated_hours || 0,
+          priority: templateTask.priority || 'medium',
+          status: 'not_started',
+          is_milestone: templateTask.is_milestone || false
+        });
+      }
+
+      setShowTemplateCustomizer(false);
+      await fetchProjects();
+      navigate(`/projects/${project.id}`);
+    } catch (err: any) {
+      console.error('Template project creation error:', err);
+      console.error('Error response:', err.response);
+      console.error('Error data:', err.response?.data);
+
+      let errorMessage = 'テンプレートからのプロジェクト作成に失敗しました';
+
+      if (err.response?.data) {
+        const data = err.response.data;
+        if (typeof data === 'string') {
+          errorMessage = data;
+        } else if (data.detail) {
+          errorMessage = data.detail;
+        } else if (data.message) {
+          errorMessage = data.message;
+        } else if (data.error) {
+          errorMessage = data.error;
+        } else {
+          // フィールドエラーをチェック
+          const fieldErrors = [];
+          for (const [field, errors] of Object.entries(data)) {
+            if (Array.isArray(errors)) {
+              fieldErrors.push(`${field}: ${errors.join(', ')}`);
+            } else if (typeof errors === 'string') {
+              fieldErrors.push(`${field}: ${errors}`);
+            }
+          }
+          if (fieldErrors.length > 0) {
+            errorMessage = `入力エラー: ${fieldErrors.join('; ')}`;
+          }
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
+    }
+  };
+
+  // 終了日計算
+  const calculateEndDate = (startDate: string, tasks: any[]): string => {
+    const start = new Date(startDate);
+    const maxDuration = Math.max(...tasks.map(task => task.start_offset_days + task.duration_days));
+    const end = new Date(start.getTime() + (maxDuration * 24 * 60 * 60 * 1000));
+    return end.toISOString().split('T')[0];
   };
 
   return (
@@ -288,7 +393,7 @@ const ProjectCreatePage: React.FC = () => {
 
                 {/* テンプレート選択ボタン */}
                 <button
-                  onClick={() => alert('テンプレート機能は実装中です')}
+                  onClick={() => setShowTemplateSelector(true)}
                   disabled={isLoading}
                   className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                 >
@@ -298,6 +403,21 @@ const ProjectCreatePage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* テンプレート選択モーダル */}
+        <TemplateSelector
+          isOpen={showTemplateSelector}
+          onClose={() => setShowTemplateSelector(false)}
+          onSelect={handleTemplateSelect}
+        />
+
+        {/* テンプレートカスタマイザー */}
+        <TemplateCustomizer
+          template={selectedTemplate}
+          isOpen={showTemplateCustomizer}
+          onClose={() => setShowTemplateCustomizer(false)}
+          onConfirm={handleTemplateConfirm}
+        />
       </div>
     </Layout>
   );

@@ -141,8 +141,10 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   createTask: async (data: Partial<Task>) => {
     try {
       set({ isLoading: true, error: null });
+      console.log('TaskStore: Creating task with data:', data);
       const response = await taskAPI.createTask(data);
       const newTask = response.data;
+      console.log('TaskStore: Task created successfully:', newTask);
 
       set(state => ({
         tasks: [...state.tasks, newTask],
@@ -152,8 +154,39 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       return newTask;
     } catch (error: any) {
       console.error('Task creation failed:', error);
-      const errorMessage = error.response?.data?.detail ||
-                          'タスクの作成に失敗しました';
+      console.error('Error response:', error.response);
+      console.error('Error data:', error.response?.data);
+
+      let errorMessage = 'タスクの作成に失敗しました';
+
+      if (error.response?.data) {
+        const data = error.response.data;
+        if (typeof data === 'string') {
+          errorMessage = data;
+        } else if (data.detail) {
+          errorMessage = data.detail;
+        } else if (data.message) {
+          errorMessage = data.message;
+        } else if (data.error) {
+          errorMessage = data.error;
+        } else {
+          // フィールドエラーをチェック
+          const fieldErrors = [];
+          for (const [field, errors] of Object.entries(data)) {
+            if (Array.isArray(errors)) {
+              fieldErrors.push(`${field}: ${errors.join(', ')}`);
+            } else if (typeof errors === 'string') {
+              fieldErrors.push(`${field}: ${errors}`);
+            }
+          }
+          if (fieldErrors.length > 0) {
+            errorMessage = `${fieldErrors.join('; ')}`;
+          }
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       set({
         error: errorMessage,
         isLoading: false
