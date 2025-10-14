@@ -11,6 +11,7 @@ interface TaskCreateModalProps {
   onTaskCreated?: (task: Task) => void;
   parentTask?: Task | null;
   projectTasks?: Task[];
+  availableUsers?: User[];
 }
 
 export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
@@ -19,7 +20,8 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
   projectId,
   onTaskCreated,
   parentTask,
-  projectTasks = []
+  projectTasks = [],
+  availableUsers = []
 }) => {
   const { createTask, tasks } = useTaskStore();
   const { user } = useAuthStore();
@@ -50,79 +52,33 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
     }));
   }, [parentTask]);
 
-  // ユーザー一覧を取得
+  // ユーザー一覧を取得（プロパティで渡された場合はそれを使用）
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        console.log('TaskCreateModal: Fetching users...');
+    if (isOpen) {
+      if (availableUsers.length > 0) {
+        // プロパティでユーザーが渡されている場合はそれを使用
+        console.log('TaskCreateModal: Using provided users:', availableUsers);
+        setUsers(availableUsers);
+        return;
+      }
 
-        // まず全ユーザーAPIを試す
-        try {
-          const response = await userAPI.getUsers();
-          console.log('TaskCreateModal: Users response:', response);
-          console.log('TaskCreateModal: Users data:', response.data);
-
-          if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-            setUsers(response.data);
-            console.log('TaskCreateModal: Set users from userAPI:', response.data);
-            return;
-          }
-        } catch (userAPIError) {
-          console.warn('TaskCreateModal: userAPI.getUsers failed:', userAPIError);
-        }
-
-        // プロジェクトメンバーからユーザー情報を取得を試す
-        try {
-          console.log('TaskCreateModal: Trying to get project members for project:', projectId);
-          const membersResponse = await projectAPI.getProjectMembers(projectId);
-          console.log('TaskCreateModal: Project members response:', membersResponse);
-
-          if (membersResponse.data && Array.isArray(membersResponse.data)) {
-            // プロジェクトメンバーからユーザー情報を抽出
-            const projectUsers = membersResponse.data.map(member => ({
-              id: member.user?.id || member.user_id,
-              username: member.user?.username || member.username,
-              full_name: member.user?.full_name || member.full_name || member.user?.username || member.username,
-              email: member.user?.email || member.email
-            })).filter(user => user.id);
-
-            if (projectUsers.length > 0) {
-              setUsers(projectUsers);
-              console.log('TaskCreateModal: Set users from project members:', projectUsers);
-              return;
-            }
-          }
-        } catch (projectAPIError) {
-          console.warn('TaskCreateModal: projectAPI.getProjectMembers failed:', projectAPIError);
-        }
-
-        // フォールバック: 現在のユーザーのみを設定
-        const currentUser = user;
-        if (currentUser) {
-          const fallbackUsers = [{
-            id: currentUser.id,
-            username: currentUser.username,
-            full_name: currentUser.full_name || currentUser.username,
-            email: currentUser.email
-          }];
-          setUsers(fallbackUsers);
-          console.log('TaskCreateModal: Set fallback users (current user only):', fallbackUsers);
-        } else {
-          console.warn('TaskCreateModal: No users found and no current user available');
-          setUsers([]);
-        }
-
-      } catch (error) {
-        console.error('TaskCreateModal: Failed to fetch users:', error);
+      // フォールバック: 現在のユーザーのみを設定
+      const currentUser = user;
+      if (currentUser) {
+        const fallbackUsers = [{
+          id: currentUser.id,
+          username: currentUser.username,
+          full_name: currentUser.full_name || currentUser.username,
+          email: currentUser.email
+        }];
+        setUsers(fallbackUsers);
+        console.log('TaskCreateModal: Using current user as fallback:', fallbackUsers);
+      } else {
+        console.warn('TaskCreateModal: No users available');
         setUsers([]);
       }
-    };
-
-    if (isOpen) {
-      console.log('TaskCreateModal: Modal opened, fetching users...');
-      fetchUsers();
     }
-  }, [isOpen, projectId, user]);
+  }, [isOpen, availableUsers, user]);
 
   // モーダルが開かれた時にフォームをリセット
   useEffect(() => {
@@ -220,55 +176,32 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
 
       const newTask = await createTask(taskData);
 
+      console.log('TaskCreateModal: Raw task creation response:', newTask);
+      console.log('TaskCreateModal: newTask type:', typeof newTask);
+      console.log('TaskCreateModal: newTask keys:', newTask ? Object.keys(newTask) : 'null');
+      console.log('TaskCreateModal: newTask.id:', newTask?.id);
+
       if (!newTask) {
         throw new Error('タスクの作成に失敗しました - 応答が空です');
       }
 
-      // タスク作成が成功したかを確認（IDまたはnameとprojectの存在をチェック）
-      if (!newTask.id && (!newTask.name || !newTask.project)) {
-        throw new Error('タスクの作成に失敗しました - 不完全な応答です');
-      }
-
-      // IDがない場合は、一意の識別子として現在時刻を追加（一時的対処）
+      // タスク作成が成功したかを確認（IDが必須）
       if (!newTask.id) {
-        newTask.id = Date.now();
+        console.error('TaskCreateModal: Task creation response:', newTask);
+        console.error('TaskCreateModal: Full response details:', JSON.stringify(newTask, null, 2));
+        throw new Error('タスクの作成に失敗しました - IDが返されませんでした');
       }
 
       console.log('TaskCreateModal: Task created successfully:', newTask);
 
-      // 担当者の設定
-      if (formData.assigned_users.length > 0) {
-        console.log('TaskCreateModal: Setting task assignments...');
-        for (const userId of formData.assigned_users) {
-          try {
-            await taskAPI.addTaskAssignment(newTask.id, { user_id: userId });
-            console.log(`TaskCreateModal: Added assignment for user ${userId}`);
-          } catch (assignmentError) {
-            console.error(`TaskCreateModal: Failed to add assignment for user ${userId}:`, assignmentError);
-          }
-        }
-      }
-
-      // 先行タスクの設定
-      if (formData.predecessor_tasks.length > 0) {
-        console.log('TaskCreateModal: Setting task dependencies...');
-        for (const predecessorId of formData.predecessor_tasks) {
-          try {
-            await taskAPI.addTaskDependency(newTask.id, {
-              predecessor_task_id: predecessorId,
-              dependency_type: 'finish_to_start',
-              lag_days: 0
-            });
-            console.log(`TaskCreateModal: Added dependency for predecessor ${predecessorId}`);
-          } catch (dependencyError) {
-            console.error(`TaskCreateModal: Failed to add dependency for predecessor ${predecessorId}:`, dependencyError);
-          }
-        }
-      }
+      // 担当者・先行タスク設定は既にTaskCreateSerializerで処理されているので削除
+      // newTaskには既に完全なデータが含まれている
+      console.log('TaskCreateModal: Task created with all data:', newTask);
+      let finalTask = newTask;
 
       // 親コンポーネントにタスク作成完了を通知
       if (onTaskCreated) {
-        onTaskCreated(newTask);
+        onTaskCreated(finalTask);
       }
 
       // タスク作成成功後にモーダルを閉じる

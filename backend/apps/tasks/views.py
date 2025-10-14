@@ -42,6 +42,26 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    def create(self, request, *args, **kwargs):
+        """タスク作成"""
+        # 作成権限チェック
+        project_id = request.data.get('project')
+        if project_id and not self._can_modify_project(project_id, request.user):
+            return Response(
+                {'error': 'タスクを作成する権限がありません'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # タスクを作成
+        created_task = serializer.save()
+
+        # レスポンス用にTaskSerializerを使用して完全なデータを返す
+        response_serializer = TaskSerializer(created_task)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
     @action(detail=False, methods=['get'])
     def gantt_data(self, request):
         """ガントチャート用データ取得"""
@@ -135,7 +155,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         try:
             self.perform_destroy(instance)
-            return Response({'message': 'タスクを削除しました'}, status=status.HTTP_204_NO_CONTENT)
+            return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response(
                 {
