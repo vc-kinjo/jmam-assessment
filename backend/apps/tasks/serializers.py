@@ -106,6 +106,8 @@ class TaskListSerializer(serializers.ModelSerializer):
     project_name = serializers.CharField(source='project.name', read_only=True)
     parent_task_name = serializers.CharField(source='parent_task.name', read_only=True)
     assigned_users = serializers.SerializerMethodField()
+    assignments = TaskAssignmentSerializer(many=True, read_only=True)
+    dependencies_as_successor = TaskDependencySerializer(many=True, read_only=True)
     subtask_count = serializers.SerializerMethodField()
 
     class Meta:
@@ -113,8 +115,8 @@ class TaskListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'project', 'project_name', 'parent_task', 'parent_task_name',
             'level', 'name', 'planned_start_date', 'planned_end_date',
-            'progress_rate', 'priority', 'status', 'is_milestone',
-            'sort_order', 'assigned_users', 'subtask_count'
+            'estimated_hours', 'progress_rate', 'priority', 'status', 'is_milestone',
+            'sort_order', 'assigned_users', 'assignments', 'dependencies_as_successor', 'subtask_count'
         ]
 
     def get_assigned_users(self, obj):
