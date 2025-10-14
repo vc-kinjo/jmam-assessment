@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useProjectStore } from '../stores/projectStore';
 import { useTaskStore } from '../stores/taskStore';
 import { useAuthStore } from '../stores/authStore';
-import { Task, Project } from '../types/index';
+import { Task, Project, User } from '../types/index';
+import { userAPI, projectAPI } from '../services/api';
 import { TaskCreateModal } from '../components/modals/TaskCreateModal';
 import { TaskDetailModal } from '../components/modals/TaskDetailModal';
 
@@ -70,6 +71,7 @@ export default function ProjectDetailPage() {
   const [dependencies, setDependencies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [availableUsers, setAvailableUsers] = useState<User[]>([]);
 
   // ガントチャート設定
   const [selectedTaskId, setSelectedTaskId] = useState<number | undefined>();
@@ -109,6 +111,66 @@ export default function ProjectDetailPage() {
       isMounted = false;
     };
   }, [isAuthenticated, user, navigate]);
+
+  // ユーザー情報を事前取得（一度だけ）
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        // まず全ユーザーAPIを試す
+        try {
+          const response = await userAPI.getUsers();
+          if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+            setAvailableUsers(response.data);
+            console.log('ProjectDetailPage: Set users from userAPI:', response.data);
+            return;
+          }
+        } catch (userAPIError) {
+          console.warn('ProjectDetailPage: userAPI.getUsers failed:', userAPIError);
+        }
+
+        // プロジェクトメンバーからユーザー情報を取得を試す
+        if (projectId) {
+          try {
+            const membersResponse = await projectAPI.getProjectMembers(projectId);
+            if (membersResponse.data && Array.isArray(membersResponse.data)) {
+              const projectUsers = membersResponse.data.map(member => ({
+                id: member.user?.id || member.user_id,
+                username: member.user?.username || member.username,
+                full_name: member.user?.full_name || member.full_name || member.user?.username || member.username,
+                email: member.user?.email || member.email
+              })).filter(user => user.id);
+
+              if (projectUsers.length > 0) {
+                setAvailableUsers(projectUsers);
+                console.log('ProjectDetailPage: Set users from project members:', projectUsers);
+                return;
+              }
+            }
+          } catch (projectAPIError) {
+            console.warn('ProjectDetailPage: projectAPI.getProjectMembers failed:', projectAPIError);
+          }
+        }
+
+        // フォールバック: 現在のユーザーのみを設定
+        if (user) {
+          const fallbackUsers = [{
+            id: user.id,
+            username: user.username,
+            full_name: user.full_name || user.username,
+            email: user.email
+          }];
+          setAvailableUsers(fallbackUsers);
+          console.log('ProjectDetailPage: Set fallback users (current user only):', fallbackUsers);
+        }
+      } catch (error) {
+        console.error('ProjectDetailPage: Failed to fetch users:', error);
+      }
+    };
+
+    if (isAuthenticated && user && projectId) {
+      fetchUsers();
+    }
+  }, [isAuthenticated, user, projectId]);
 
   // データ取得
   useEffect(() => {
@@ -743,6 +805,7 @@ export default function ProjectDetailPage() {
         onTaskCreated={handleTaskCreated}
         parentTask={selectedTask}
         projectTasks={tasks}
+        availableUsers={availableUsers}
       />
 
       {/* タスク詳細モーダル */}
