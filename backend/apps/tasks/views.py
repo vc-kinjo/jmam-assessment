@@ -32,7 +32,11 @@ class TaskViewSet(viewsets.ModelViewSet):
         ).distinct().select_related(
             'project', 'parent_task'
         ).prefetch_related(
-            'assignments__user', 'subtasks', 'comments__user'
+            'assignments__user',
+            'subtasks',
+            'comments__user',
+            'dependencies_as_successor__predecessor',
+            'dependencies_as_predecessor__successor'
         )
 
         # project_idパラメータによるフィルタリング
