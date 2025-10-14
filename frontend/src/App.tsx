@@ -8,6 +8,7 @@ import DashboardPage from './pages/DashboardPage';
 import GanttPage from './pages/GanttPage';
 import ProjectCreatePage from './pages/ProjectCreatePage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
+import ProjectListPage from './pages/ProjectListPage';
 
 // QueryClientの設定
 const queryClient = new QueryClient({
@@ -91,10 +92,7 @@ function App() {
               path="/projects"
               element={
                 <ProtectedRoute>
-                  <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                    <h1 className="text-2xl font-bold text-gray-900">プロジェクト</h1>
-                    <p className="mt-2 text-gray-600">プロジェクト一覧ページは実装中です。</p>
-                  </div>
+                  <ProjectListPage />
                 </ProtectedRoute>
               }
             />

@@ -27,6 +27,7 @@ export interface Project {
   created_at: string;
   updated_at: string;
   members: ProjectMember[];
+  member_count: number;
   task_count: number;
   total_tasks: number;
   completed_tasks: number;

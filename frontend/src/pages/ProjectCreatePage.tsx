@@ -180,7 +180,7 @@ const ProjectCreatePage: React.FC = () => {
   };
 
   return (
-    <Layout>
+    <Layout showNavigation={false}>
       <div className="create-project-page min-h-screen bg-gray-50">
         {/* ヘッダー */}
         <div className="bg-white border-b border-gray-200">
