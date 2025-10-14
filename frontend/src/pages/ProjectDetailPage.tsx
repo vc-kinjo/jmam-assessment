@@ -532,10 +532,11 @@ export default function ProjectDetailPage() {
     <div className="project-detail-page min-h-screen bg-gray-50">
       {/* ヘッダー */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
+        <div className="max-w-7xl mx-auto px-4 py-4 sm:py-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex flex-col gap-2 min-w-0 flex-1">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 gap-2">
+              <div className="flex items-center space-x-2 flex-shrink-0">
                 <button
                   onClick={() => navigate('/dashboard')}
                   className="flex items-center space-x-1 px-2 py-1 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
@@ -556,16 +557,17 @@ export default function ProjectDetailPage() {
                   <span className="text-sm">プロジェクト一覧</span>
                 </button>
               </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">{project.name}</h1>
+              <div className="min-w-0 overflow-hidden">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 truncate">{project.name}</h1>
                 {project.description && (
-                  <p className="text-gray-600 mt-1">{project.description}</p>
+                  <p className="text-gray-600 mt-1 text-sm sm:text-base truncate">{project.description}</p>
                 )}
               </div>
             </div>
+            </div>
 
             {/* プロジェクト情報 */}
-            <div className="flex items-center space-x-6 text-sm text-gray-600">
+            <div className="flex flex-wrap justify-start sm:justify-end items-center space-x-6 text-sm text-gray-600 flex-shrink-0 whitespace-nowrap">
               <div className="text-center">
                 <div className="font-medium text-gray-900">{tasks.length}</div>
                 <div>タスク</div>
@@ -582,7 +584,7 @@ export default function ProjectDetailPage() {
                 </div>
                 <div>進捗</div>
               </div>
-              <div className="flex items-center space-x-2">
+              <div>
                 <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${
                   project.status === 'active' ? 'bg-blue-100 text-blue-800' :
                   project.status === 'completed' ? 'bg-green-100 text-green-800' :
@@ -653,34 +655,34 @@ export default function ProjectDetailPage() {
               <h2 className="text-lg font-semibold text-gray-900">タスク一覧</h2>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
+              <table className="w-full min-w-[900px]">
+                <thead className="bg-gray-50 sticky top-0 z-10">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap truncate">
                       タスク名
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap truncate">
                       ステータス
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap truncate">
                       優先度
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap truncate hidden sm:table-cell">
                       開始日
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap truncate hidden sm:table-cell">
                       終了予定日
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap truncate hidden sm:table-cell">
                       見積時間
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap truncate hidden sm:table-cell">
                       担当者
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap truncate hidden sm:table-cell">
                       先行タスク
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap truncate">
                       操作
                     </th>
                   </tr>
@@ -735,16 +737,16 @@ export default function ProjectDetailPage() {
                            task.priority === 'medium' ? '中' : '低'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
                         {task.planned_start_date || '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
                         {task.planned_end_date || '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
                         {task.estimated_hours ? `${task.estimated_hours}h` : '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
                         {task.assignments && task.assignments.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {task.assignments.map(assignment => (
@@ -760,7 +762,7 @@ export default function ProjectDetailPage() {
                           <span className="text-gray-400 italic">未設定</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
                         {task.dependencies_as_successor && task.dependencies_as_successor.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {task.dependencies_as_successor.map(dependency => (
