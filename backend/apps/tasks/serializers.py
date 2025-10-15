@@ -195,9 +195,9 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         # 親タスクの階層制限チェック
         if data.get('parent_task'):
             parent_task = data['parent_task']
-            if parent_task.level >= 3:
+            if parent_task.level >= 1:
                 raise serializers.ValidationError(
-                    "サブタスクは3階層までしか作成できません"
+                    "サブタスクは子タスクまでしか作成できません（孫タスクは作成不可）"
                 )
 
             # 親タスクが同じプロジェクトに属するかチェック

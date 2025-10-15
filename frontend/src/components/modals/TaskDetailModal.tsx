@@ -504,7 +504,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             </h2>
           </div>
           <div className="flex items-center space-x-2">
-            {!isEditing && onCreateSubtask && (
+            {!isEditing && onCreateSubtask && displayTask.level < 1 && (
               <button
                 onClick={handleCreateSubtask}
                 className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors flex items-center space-x-1"
