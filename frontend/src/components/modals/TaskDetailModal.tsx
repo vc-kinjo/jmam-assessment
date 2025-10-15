@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Task, User } from '../../types/index';
 import { useTaskStore } from '../../stores/taskStore';
 import { userAPI, taskAPI } from '../../services/api';
+
+// グローバルキャッシュ（コンポーネント外部で管理）
+let globalUsersCache: User[] | null = null;
+let globalUsersFetching = false;
 
 interface TaskDetailModalProps {
   isOpen: boolean;
@@ -62,33 +66,83 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     predecessor_tasks: [] as number[]
   });
 
-  // ユーザー一覧を取得
+  // ユーザー一覧を取得（グローバルキャッシュ使用）
   useEffect(() => {
+    let isMounted = true;
+
     const fetchUsers = async () => {
+      // グローバルキャッシュが存在する場合はそれを使用
+      if (globalUsersCache) {
+        console.log('TaskDetailModal: Using global users cache, count:', globalUsersCache.length);
+        setUsers(globalUsersCache);
+        return;
+      }
+
+      // 他のコンポーネントが既にフェッチ中の場合は待機
+      if (globalUsersFetching) {
+        console.log('TaskDetailModal: Another component is fetching users, waiting...');
+        // 短時間待機してからキャッシュを再確認
+        setTimeout(() => {
+          if (globalUsersCache && isMounted) {
+            console.log('TaskDetailModal: Using cache after wait, count:', globalUsersCache.length);
+            setUsers(globalUsersCache);
+          }
+        }, 100);
+        return;
+      }
+
       try {
+        console.log('TaskDetailModal: Starting global users fetch');
+        globalUsersFetching = true;
+
         const response = await userAPI.getUsers();
-        console.log('TaskDetailModal: Users response:', response);
+        console.log('TaskDetailModal: Users API response received');
+
+        if (!isMounted) {
+          console.log('TaskDetailModal: Component unmounted, skipping users update');
+          globalUsersFetching = false;
+          return;
+        }
+
+        let usersData: User[] = [];
+
         // レスポンスが配列かどうかを確認し、適切に処理
         if (Array.isArray(response.data)) {
-          setUsers(response.data);
+          usersData = response.data;
         } else if (response.data && Array.isArray(response.data.results)) {
-          setUsers(response.data.results);
+          usersData = response.data.results;
         } else {
           console.warn('TaskDetailModal: Unexpected users data format:', response.data);
+          usersData = [];
+        }
+
+        // グローバルキャッシュに保存
+        globalUsersCache = usersData;
+        setUsers(usersData);
+        console.log('TaskDetailModal: Users cached globally and set locally, count:', usersData.length);
+
+      } catch (error) {
+        if (isMounted) {
+          console.error('TaskDetailModal: Failed to fetch users:', error);
           setUsers([]);
         }
-      } catch (error) {
-        console.error('Failed to fetch users:', error);
-        setUsers([]);
+      } finally {
+        globalUsersFetching = false;
       }
     };
 
+    // モーダルが開かれた時のみ実行
     if (isOpen) {
+      console.log('TaskDetailModal: Modal opened, checking global users cache');
       fetchUsers();
     }
-  }, [isOpen]);
 
-  // タスクデータでフォームを初期化
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen]); // isOpenのみを依存配列にして、グローバルキャッシュで重複防止
+
+  // タスクデータでフォームを初期化（モーダル開始時のみ）
   useEffect(() => {
     let isMounted = true;
 
@@ -101,30 +155,38 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           return;
         }
 
-        try {
-          console.log('TaskDetailModal: Fetching detailed task data for ID:', task.id);
-          await fetchTask(task.id);
-        } catch (error: any) {
-          if (isMounted) {
-            console.error('TaskDetailModal: Failed to fetch task details:', error);
-            // 404エラーの場合はタスクが削除されているため、モーダルを閉じる
-            if (error.response?.status === 404) {
-              console.log('TaskDetailModal: Task not found during fetch, closing modal');
-              onClose();
-              return;
+        // 現在のcurrentTaskと異なるタスクの場合のみフェッチ
+        if (storeCurrentTask?.id !== task.id) {
+          try {
+            console.log('TaskDetailModal: Fetching detailed task data for ID:', task.id);
+            await fetchTask(task.id);
+          } catch (error: any) {
+            if (isMounted) {
+              console.error('TaskDetailModal: Failed to fetch task details:', error);
+              // 404エラーの場合はタスクが削除されているため、モーダルを閉じる
+              if (error.response?.status === 404) {
+                console.log('TaskDetailModal: Task not found during fetch, closing modal');
+                onClose();
+                return;
+              }
+              setError('タスクの詳細情報の取得に失敗しました');
             }
-            setError('タスクの詳細情報の取得に失敗しました');
           }
+        } else {
+          console.log('TaskDetailModal: Using existing current task data');
         }
       }
     };
 
-    fetchTaskDetails();
+    // isOpenがtrueになった時のみ実行
+    if (isOpen) {
+      fetchTaskDetails();
+    }
 
     return () => {
       isMounted = false;
     };
-  }, [task?.id, isOpen]);
+  }, [task?.id, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ストアのcurrentTaskが更新された時にフォームデータを設定
   useEffect(() => {
@@ -140,6 +202,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       console.log('TaskDetailModal: Current task is null but task prop has valid ID, continuing with task prop');
     }
 
+    // タスクIDが一致する場合は必ずフォームデータを更新（最新のデータ反映のため）
     if (storeCurrentTask && task && storeCurrentTask.id === task.id) {
       console.log('TaskDetailModal: Got detailed task data:', storeCurrentTask);
       console.log('TaskDetailModal: Task fields:');
@@ -277,155 +340,24 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       console.log('TaskDetailModal: Original predecessors:', originalPredecessors);
       console.log('TaskDetailModal: New predecessors:', updateData.predecessor_tasks);
 
-      // 変更があるかチェック
-      const assignmentChangesExist = JSON.stringify(originalAssignments.sort()) !== JSON.stringify(updateData.assigned_users.sort());
-      const dependencyChangesExist = JSON.stringify(originalPredecessors.sort()) !== JSON.stringify(updateData.predecessor_tasks.sort());
-      console.log('TaskDetailModal: Assignment changes exist:', assignmentChangesExist);
-      console.log('TaskDetailModal: Dependency changes exist:', dependencyChangesExist);
+      // 一回のリクエストで全てを更新（基本情報 + 担当者 + 先行タスク）
+      console.log('TaskDetailModal: Updating task with complete data:', updateData);
 
-      // 基本情報を更新（担当者と先行タスクは除く）
-      const basicUpdateData = {
-        name: updateData.name,
-        description: updateData.description,
-        planned_start_date: updateData.planned_start_date,
-        planned_end_date: updateData.planned_end_date,
-        actual_start_date: updateData.actual_start_date,
-        actual_end_date: updateData.actual_end_date,
-        estimated_hours: updateData.estimated_hours,
-        actual_hours: updateData.actual_hours,
-        progress_rate: updateData.progress_rate,
-        priority: updateData.priority,
-        status: updateData.status,
-        category: updateData.category,
-        is_milestone: updateData.is_milestone
-      };
+      const updatedTask = await updateTask(displayTask.id, updateData);
+      console.log('TaskDetailModal: Task updated successfully with all data:', updatedTask);
 
-      const updatedTask = await updateTask(displayTask.id, basicUpdateData);
-      console.log('TaskDetailModal: Task updated successfully:', updatedTask);
+      // サーバーから返された最新データを使用（手動でのデータ構築は不要）
+      console.log('TaskDetailModal: Using server-returned task data:', updatedTask);
 
-      // 担当者の変更を処理
-      const assignmentChanges = {
-        toAdd: updateData.assigned_users.filter(id => !originalAssignments.includes(id)),
-        toRemove: originalAssignments.filter(id => !updateData.assigned_users.includes(id))
-      };
-
-      console.log('TaskDetailModal: Assignment changes:', assignmentChanges);
-
-      // 担当者を追加
-      for (const userId of assignmentChanges.toAdd) {
-        try {
-          await taskAPI.addTaskAssignment(displayTask.id, { user_id: userId });
-          console.log('TaskDetailModal: Added assignment for user:', userId);
-        } catch (error) {
-          console.error('TaskDetailModal: Failed to add assignment for user:', userId, error);
-        }
-      }
-
-      // 担当者を削除
-      for (const userId of assignmentChanges.toRemove) {
-        try {
-          await taskAPI.removeTaskAssignment(displayTask.id, userId);
-          console.log('TaskDetailModal: Removed assignment for user:', userId);
-        } catch (error) {
-          console.error('TaskDetailModal: Failed to remove assignment for user:', userId, error);
-        }
-      }
-
-      // 先行タスクの変更を処理
-      const dependencyChanges = {
-        toAdd: updateData.predecessor_tasks.filter(id => !originalPredecessors.includes(id)),
-        toRemove: originalPredecessors.filter(id => !updateData.predecessor_tasks.includes(id))
-      };
-
-      console.log('TaskDetailModal: Dependency changes:', dependencyChanges);
-
-      // 先行タスクを追加
-      for (const predecessorId of dependencyChanges.toAdd) {
-        try {
-          await taskAPI.addTaskDependency(displayTask.id, { predecessor: predecessorId });
-          console.log('TaskDetailModal: Added dependency for task:', predecessorId);
-        } catch (error) {
-          console.error('TaskDetailModal: Failed to add dependency for task:', predecessorId, error);
-        }
-      }
-
-      console.log('TaskDetailModal: Building updated assignments');
-      console.log('- updateData.assigned_users:', updateData.assigned_users);
-      console.log('- available users:', users);
-
-      // 担当者情報を再構築
-      const updatedAssignments = Array.isArray(users) ? users
-        .filter(user => {
-          const included = updateData.assigned_users.includes(user.id);
-          console.log(`- User ${user.username} (${user.id}): ${included ? 'included' : 'excluded'}`);
-          return included;
-        })
-        .map((user, index) => ({
-          id: index + 1, // 仮のID
-          user: user,
-          assigned_at: new Date().toISOString()
-        })) : [];
-
-      console.log('TaskDetailModal: Updated assignments built:', updatedAssignments);
-
-      // 先行タスク情報を再構築
-      const updatedDependencies = Array.isArray(projectTasks) ? projectTasks
-        .filter(task => updateData.predecessor_tasks.includes(task.id))
-        .map((task, index) => ({
-          id: index + 1, // 仮のID
-          predecessor: task.id,
-          predecessor_name: task.name,
-          successor: displayTask.id
-        })) : [];
-
-      // 更新されたタスクでcurrentTaskを更新（フォームデータもマージ）
-      const mergedTask = {
-        ...displayTask,
-        ...updatedTask,
-        // フォームで入力したデータも確実に反映
-        name: updateData.name,
-        description: updateData.description,
-        category: updateData.category,
-        planned_start_date: updateData.planned_start_date,
-        planned_end_date: updateData.planned_end_date,
-        actual_start_date: updateData.actual_start_date,
-        actual_end_date: updateData.actual_end_date,
-        estimated_hours: updateData.estimated_hours,
-        actual_hours: updateData.actual_hours,
-        progress_rate: updateData.progress_rate,
-        priority: updateData.priority,
-        status: updateData.status,
-        is_milestone: updateData.is_milestone,
-        // 関係データも更新
-        assignments: updatedAssignments,
-        dependencies_as_successor: updatedDependencies
-      };
-
-      console.log('TaskDetailModal: Final mergedTask assignments:', mergedTask.assignments);
-
-      // ローカル状態を更新
-      setCurrentTask(mergedTask);
+      // ローカル状態を更新（サーバーから返された完全なデータを使用）
+      setCurrentTask(updatedTask);
 
       // 即座に親コンポーネントを更新（UI反映のため）
-      onUpdate?.(mergedTask);
-
-      // バックグラウンドでサーバーから最新データを取得して同期（UIには影響しない）
-      setTimeout(async () => {
-        try {
-          await fetchTask(displayTask.id);
-        } catch (error: any) {
-          if (error.response?.status === 404) {
-            console.log('TaskDetailModal: Task not found during background sync, closing modal');
-            onClose();
-            return;
-          }
-          console.warn('TaskDetailModal: Failed to sync task data in background:', error);
-        }
-      }, 100);
+      onUpdate?.(updatedTask);
 
       setIsEditing(false);
 
-      // 更新成功後にモーダルを閉じる
+      // 更新成功後にモーダルを閉じる（サーバー同期は不要、updateTaskで最新データを取得済み）
       console.log('TaskDetailModal: Task update completed successfully, closing modal');
       onClose();
     } catch (error: any) {
