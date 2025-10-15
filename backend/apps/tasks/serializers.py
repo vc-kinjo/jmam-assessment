@@ -195,9 +195,9 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         # 親タスクの階層制限チェック
         if data.get('parent_task'):
             parent_task = data['parent_task']
-            if parent_task.level >= 3:
+            if parent_task.level >= 1:
                 raise serializers.ValidationError(
-                    "サブタスクは3階層までしか作成できません"
+                    "サブタスクは子タスクまでしか作成できません（孫タスクは作成不可）"
                 )
 
             # 親タスクが同じプロジェクトに属するかチェック
@@ -425,8 +425,19 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
                         dependency_type='finish_to_start'
                     )
 
-        # 更新後のインスタンスをリロード
+        # 更新後のインスタンスをリロード（関連データも含めて）
         instance.refresh_from_db()
+
+        # 関連データをプリフェッチして完全なデータを返す
+        from django.db import models
+        instance = Task.objects.select_related(
+            'project', 'parent_task'
+        ).prefetch_related(
+            'assignments__user',
+            'dependencies_as_successor__predecessor',
+            'dependencies_as_predecessor__successor'
+        ).get(id=instance.id)
+
         return instance
 
     def _creates_circular_dependency(self, predecessor_id: int, successor_id: int) -> bool:

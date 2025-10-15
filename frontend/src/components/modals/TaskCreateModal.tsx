@@ -246,6 +246,13 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
               レベル {parentTask.level ? parentTask.level + 1 : 1} のサブタスクとして作成されます
             </p>
           )}
+          {parentTask && parentTask.level >= 1 && (
+            <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded">
+              <p className="text-sm text-red-700">
+                このタスクは子タスクのため、これ以上サブタスクを作成することはできません。
+              </p>
+            </div>
+          )}
           <button
             onClick={onClose}
             className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
@@ -521,7 +528,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || (parentTask && parentTask.level >= 1)}
               className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? '作成中...' : 'タスクを作成'}

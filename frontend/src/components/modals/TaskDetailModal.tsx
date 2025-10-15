@@ -352,6 +352,26 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       // ローカル状態を更新（サーバーから返された完全なデータを使用）
       setCurrentTask(updatedTask);
 
+      // フォームデータも更新された内容で同期
+      if (updatedTask.assignments && updatedTask.dependencies_as_successor) {
+        const updatedAssignedUserIds = Array.isArray(updatedTask.assignments)
+          ? updatedTask.assignments.map(assignment => assignment.user.id)
+          : [];
+        const updatedPredecessorTaskIds = Array.isArray(updatedTask.dependencies_as_successor)
+          ? updatedTask.dependencies_as_successor.map(dep => dep.predecessor)
+          : [];
+
+        console.log('TaskDetailModal: Updating form data with server response');
+        console.log('- Updated assigned user IDs:', updatedAssignedUserIds);
+        console.log('- Updated predecessor task IDs:', updatedPredecessorTaskIds);
+
+        setFormData(prev => ({
+          ...prev,
+          assigned_users: updatedAssignedUserIds,
+          predecessor_tasks: updatedPredecessorTaskIds
+        }));
+      }
+
       // 即座に親コンポーネントを更新（UI反映のため）
       onUpdate?.(updatedTask);
 
@@ -456,6 +476,16 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     formData.assigned_users.includes(user.id)
   ) : [];
 
+  // デバッグ情報
+  if (isEditing) {
+    console.log('TaskDetailModal: Assigned users calculation:', {
+      usersCount: users.length,
+      formDataAssignedUsers: formData.assigned_users,
+      assignedUsersCount: assignedUsers.length,
+      assignedUsersData: assignedUsers
+    });
+  }
+
   // 先行タスク情報を取得
   const predecessorTasksInfo = Array.isArray(projectTasks) ? projectTasks.filter(t =>
     formData.predecessor_tasks.includes(t.id)
@@ -474,7 +504,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             </h2>
           </div>
           <div className="flex items-center space-x-2">
-            {!isEditing && onCreateSubtask && (
+            {!isEditing && onCreateSubtask && displayTask.level < 1 && (
               <button
                 onClick={handleCreateSubtask}
                 className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors flex items-center space-x-1"
