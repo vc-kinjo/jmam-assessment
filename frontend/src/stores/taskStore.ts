@@ -12,7 +12,7 @@ interface TaskState {
   // Actions
   fetchTasks: (projectId?: number) => Promise<void>;
   fetchTasksByProject: (projectId: number) => Promise<Task[]>;
-  fetchTask: (id: number) => Promise<void>;
+  fetchTask: (id: number, forceRefresh?: boolean) => Promise<void>;
   createTask: (data: Partial<Task>) => Promise<Task>;
   updateTask: (id: number, data: Partial<Task>) => Promise<Task>;
   deleteTask: (id: number) => Promise<void>;
@@ -86,9 +86,9 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }
   },
 
-  fetchTask: async (id: number) => {
+  fetchTask: async (id: number, forceRefresh: boolean = false) => {
     try {
-      console.log('TaskStore.fetchTask called for ID:', id);
+      console.log('TaskStore.fetchTask called for ID:', id, 'forceRefresh:', forceRefresh);
 
       // IDの有効性を確認
       if (!id || id === undefined || id === null || isNaN(id)) {
@@ -102,9 +102,15 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
       const currentState = get();
 
-      // 既にローディング中または同じタスクが既に取得済みの場合はスキップ
-      if (currentState.isLoading || (currentState.currentTask?.id === id && !currentState.error)) {
-        console.log('TaskStore.fetchTask: Already loading or same task exists, skipping');
+      // 既にローディング中の場合はスキップ
+      if (currentState.isLoading) {
+        console.log('TaskStore.fetchTask: Already loading, skipping');
+        return;
+      }
+
+      // 強制リフレッシュでない場合、同じタスクが既に取得済みなら再利用
+      if (!forceRefresh && currentState.currentTask?.id === id && !currentState.error) {
+        console.log('TaskStore.fetchTask: Using cached task data for ID:', id);
         return;
       }
 

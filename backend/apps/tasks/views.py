@@ -240,6 +240,28 @@ class TaskViewSet(viewsets.ModelViewSet):
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(detail=True, methods=['delete'])
+    def remove_dependency(self, request, pk=None):
+        """先行タスク削除"""
+        task = self.get_object()
+        predecessor_id = request.data.get('predecessor_id')
+
+        if not predecessor_id:
+            return Response(
+                {'error': 'predecessor_idが必要です。'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        dependency = task.dependencies_as_successor.filter(predecessor_id=predecessor_id).first()
+        if dependency:
+            dependency.delete()
+            return Response({'message': '先行タスクを削除しました。'})
+        else:
+            return Response(
+                {'error': '指定された先行タスクが見つかりません。'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
     @action(detail=True, methods=['get', 'post'])
     def comments(self, request, pk=None):
         """タスクコメント管理"""

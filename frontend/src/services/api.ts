@@ -226,6 +226,10 @@ export const taskAPI = {
     return api.post(`/tasks/${id}/dependencies/`, data);
   },
 
+  removeTaskDependency: async (id: number, predecessorId: number): Promise<AxiosResponse> => {
+    return api.delete(`/tasks/${id}/remove_dependency/`, { data: { predecessor_id: predecessorId } });
+  },
+
   // タスクコメント
   getTaskComments: async (id: number): Promise<AxiosResponse<any[]>> => {
     return api.get(`/tasks/${id}/comments/`);
