@@ -425,8 +425,19 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
                         dependency_type='finish_to_start'
                     )
 
-        # 更新後のインスタンスをリロード
+        # 更新後のインスタンスをリロード（関連データも含めて）
         instance.refresh_from_db()
+
+        # 関連データをプリフェッチして完全なデータを返す
+        from django.db import models
+        instance = Task.objects.select_related(
+            'project', 'parent_task'
+        ).prefetch_related(
+            'assignments__user',
+            'dependencies_as_successor__predecessor',
+            'dependencies_as_predecessor__successor'
+        ).get(id=instance.id)
+
         return instance
 
     def _creates_circular_dependency(self, predecessor_id: int, successor_id: int) -> bool:
