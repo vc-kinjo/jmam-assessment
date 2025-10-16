@@ -74,7 +74,7 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({
             {/* カテゴリフィルター */}
             <div className="category-filter">
               <select
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2 pr-8 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
               >
