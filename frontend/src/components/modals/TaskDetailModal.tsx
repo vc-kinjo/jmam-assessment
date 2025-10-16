@@ -331,10 +331,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       const updatedTask = await updateTask(displayTask.id, updateData);
       console.log('TaskDetailModal: Task updated successfully with all data:', updatedTask);
 
-      // サーバーから返された最新データを使用（手動でのデータ構築は不要）
+      // サーバーから返された最新データを使用
       console.log('TaskDetailModal: Using server-returned task data:', updatedTask);
 
-      // ローカル状態を更新（サーバーから返された完全なデータを使用）
+      // ローカル状態を更新
       setCurrentTask(updatedTask);
 
       // フォームデータも更新された内容で同期

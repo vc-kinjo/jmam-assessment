@@ -686,9 +686,6 @@ export default function ProjectDetailPage() {
                               {(task.level || 0) > 0 && '↳ '}
                               {task.name}
                             </div>
-                            {task.description && (
-                              <div className="text-sm text-gray-500 truncate max-w-xs">{task.description}</div>
-                            )}
                           </div>
                         </div>
                       </td>
