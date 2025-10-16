@@ -187,9 +187,9 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         """包括的なバリデーション"""
         # 日付検証
         if (data.get('planned_start_date') and data.get('planned_end_date') and
-            data['planned_start_date'] >= data['planned_end_date']):
+            data['planned_start_date'] > data['planned_end_date']):
             raise serializers.ValidationError(
-                "計画開始日は計画終了日より前である必要があります"
+                "計画開始日は計画終了日以前である必要があります"
             )
 
         # 親タスクの階層制限チェック
@@ -329,17 +329,17 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
         # 日付検証（計画日）
         planned_start = data.get('planned_start_date', instance.planned_start_date)
         planned_end = data.get('planned_end_date', instance.planned_end_date)
-        if (planned_start and planned_end and planned_start >= planned_end):
+        if (planned_start and planned_end and planned_start > planned_end):
             raise serializers.ValidationError(
-                "計画開始日は計画終了日より前である必要があります"
+                "計画開始日は計画終了日以前である必要があります"
             )
 
         # 日付検証（実績日）
         actual_start = data.get('actual_start_date', instance.actual_start_date)
         actual_end = data.get('actual_end_date', instance.actual_end_date)
-        if (actual_start and actual_end and actual_start >= actual_end):
+        if (actual_start and actual_end and actual_start > actual_end):
             raise serializers.ValidationError(
-                "実際開始日は実際終了日より前である必要があります"
+                "実際開始日は実際終了日以前である必要があります"
             )
 
         # 進捗率検証

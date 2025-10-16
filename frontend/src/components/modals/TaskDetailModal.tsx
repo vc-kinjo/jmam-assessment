@@ -15,6 +15,7 @@ interface TaskDetailModalProps {
   onDelete?: (task: Task) => void;
   onCreateSubtask?: (parentTask: Task) => void;
   allTasks?: Task[];
+  availableUsers?: User[];
 }
 
 const TASK_STATUSES = [
@@ -38,7 +39,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   onUpdate,
   onDelete,
   onCreateSubtask,
-  allTasks = []
+  allTasks = [],
+  availableUsers = []
 }) => {
   const { updateTask, fetchTask, currentTask: storeCurrentTask } = useTaskStore();
   const [isEditing, setIsEditing] = useState(false);
@@ -66,11 +68,18 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     predecessor_tasks: [] as number[]
   });
 
-  // ユーザー一覧を取得（グローバルキャッシュ使用）
+  // ユーザー一覧を取得（availableUsersが提供されている場合はそれを使用、それ以外はグローバルキャッシュ使用）
   useEffect(() => {
     let isMounted = true;
 
     const fetchUsers = async () => {
+      // availableUsersが提供されている場合はそれを使用
+      if (availableUsers && availableUsers.length > 0) {
+        console.log('TaskDetailModal: Using provided availableUsers, count:', availableUsers.length);
+        setUsers(availableUsers);
+        return;
+      }
+
       // グローバルキャッシュが存在する場合はそれを使用
       if (globalUsersCache) {
         console.log('TaskDetailModal: Using global users cache, count:', globalUsersCache.length);
@@ -133,14 +142,14 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
     // モーダルが開かれた時のみ実行
     if (isOpen) {
-      console.log('TaskDetailModal: Modal opened, checking global users cache');
+      console.log('TaskDetailModal: Modal opened, checking available users and cache');
       fetchUsers();
     }
 
     return () => {
       isMounted = false;
     };
-  }, [isOpen]); // isOpenのみを依存配列にして、グローバルキャッシュで重複防止
+  }, [isOpen, availableUsers]); // isOpenとavailableUsersを依存配列に追加
 
   // タスクデータでフォームを初期化（モーダル開始時のみ）
   useEffect(() => {

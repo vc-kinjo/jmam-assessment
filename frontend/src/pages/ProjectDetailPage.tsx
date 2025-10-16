@@ -826,6 +826,7 @@ export default function ProjectDetailPage() {
           // TaskDetailModal側で既にonClose()が呼ばれるため、ここではsetShowTaskDetailModal(false)は不要
         }}
         allTasks={tasks}
+        availableUsers={availableUsers}
       />
 
       {/* 削除確認ダイアログ */}
