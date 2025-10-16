@@ -80,23 +80,6 @@ const GanttPage: React.FC = () => {
     }
   };
 
-  const handleLinkCreate = async (link: any) => {
-    try {
-      // タスク依存関係API呼び出し（実装必要）
-      console.log('Create link:', link);
-    } catch (error) {
-      console.error('Link create error:', error);
-    }
-  };
-
-  const handleLinkDelete = async (linkId: number) => {
-    try {
-      // タスク依存関係削除API呼び出し（実装必要）
-      console.log('Delete link:', linkId);
-    } catch (error) {
-      console.error('Link delete error:', error);
-    }
-  };
 
   return (
     <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
@@ -203,8 +186,6 @@ const GanttPage: React.FC = () => {
               onTaskUpdate={handleTaskUpdate}
               onTaskCreate={handleTaskCreate}
               onTaskDelete={handleTaskDelete}
-              onLinkCreate={handleLinkCreate}
-              onLinkDelete={handleLinkDelete}
             />
           </div>
         ) : selectedProjectId && isLoading ? (
@@ -237,7 +218,6 @@ const GanttPage: React.FC = () => {
             <li>• タスクバーをドラッグして開始日・終了日を変更できます</li>
             <li>• タスクバーの右端をドラッグして期間を調整できます</li>
             <li>• タスクをダブルクリックして詳細を編集できます</li>
-            <li>• タスク間をドラッグして依存関係を作成できます</li>
           </ul>
         </div>
       </div>

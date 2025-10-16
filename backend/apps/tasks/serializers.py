@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.db import models
-from .models import Task, TaskAssignment, TaskDependency, TaskComment, TaskAttachment
+from .models import Task, TaskAssignment, TaskComment, TaskAttachment
 from apps.users.serializers import UserListSerializer
 from apps.projects.serializers import ProjectListSerializer
 
@@ -16,18 +16,6 @@ class TaskAssignmentSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'assigned_at']
 
 
-class TaskDependencySerializer(serializers.ModelSerializer):
-    """タスク依存関係シリアライザ"""
-    predecessor_name = serializers.CharField(source='predecessor.name', read_only=True)
-    successor_name = serializers.CharField(source='successor.name', read_only=True)
-
-    class Meta:
-        model = TaskDependency
-        fields = [
-            'id', 'predecessor', 'successor', 'dependency_type', 'lag_days',
-            'predecessor_name', 'successor_name', 'created_at'
-        ]
-        read_only_fields = ['id', 'created_at']
 
 
 class TaskCommentSerializer(serializers.ModelSerializer):
@@ -70,8 +58,6 @@ class TaskSerializer(serializers.ModelSerializer):
     project_name = serializers.CharField(source='project.name', read_only=True)
     parent_task_name = serializers.CharField(source='parent_task.name', read_only=True)
     assignments = TaskAssignmentSerializer(many=True, read_only=True)
-    dependencies_as_successor = TaskDependencySerializer(many=True, read_only=True)
-    dependencies_as_predecessor = TaskDependencySerializer(many=True, read_only=True)
     comments = TaskCommentSerializer(many=True, read_only=True)
     attachments = TaskAttachmentSerializer(many=True, read_only=True)
     subtask_count = serializers.SerializerMethodField()
@@ -85,7 +71,6 @@ class TaskSerializer(serializers.ModelSerializer):
             'actual_start_date', 'actual_end_date', 'estimated_hours', 'actual_hours',
             'progress_rate', 'priority', 'status', 'is_milestone', 'category',
             'sort_order', 'created_at', 'updated_at', 'assignments',
-            'dependencies_as_successor', 'dependencies_as_predecessor',
             'comments', 'attachments', 'subtask_count', 'duration_days'
         ]
         read_only_fields = ['created_at', 'updated_at', 'level', 'duration_days']
@@ -107,7 +92,6 @@ class TaskListSerializer(serializers.ModelSerializer):
     parent_task_name = serializers.CharField(source='parent_task.name', read_only=True)
     assigned_users = serializers.SerializerMethodField()
     assignments = TaskAssignmentSerializer(many=True, read_only=True)
-    dependencies_as_successor = TaskDependencySerializer(many=True, read_only=True)
     subtask_count = serializers.SerializerMethodField()
 
     class Meta:
@@ -116,7 +100,7 @@ class TaskListSerializer(serializers.ModelSerializer):
             'id', 'project', 'project_name', 'parent_task', 'parent_task_name',
             'level', 'name', 'planned_start_date', 'planned_end_date',
             'estimated_hours', 'progress_rate', 'priority', 'status', 'is_milestone',
-            'sort_order', 'assigned_users', 'assignments', 'dependencies_as_successor', 'subtask_count'
+            'sort_order', 'assigned_users', 'assignments', 'subtask_count'
         ]
 
     def get_assigned_users(self, obj):
@@ -168,11 +152,6 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False
     )
-    predecessor_tasks = serializers.ListField(
-        child=serializers.IntegerField(),
-        write_only=True,
-        required=False
-    )
 
     class Meta:
         model = Task
@@ -180,7 +159,7 @@ class TaskCreateSerializer(serializers.ModelSerializer):
             'project', 'parent_task', 'name', 'description',
             'planned_start_date', 'planned_end_date', 'estimated_hours',
             'priority', 'status', 'is_milestone', 'category',
-            'assigned_users', 'predecessor_tasks'
+            'assigned_users'
         ]
 
     def validate(self, data):
@@ -217,9 +196,8 @@ class TaskCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         from django.db import transaction
 
-        # assigned_usersとpredecessor_tasksを取り出し
+        # assigned_usersを取り出し
         assigned_users = validated_data.pop('assigned_users', [])
-        predecessor_tasks = validated_data.pop('predecessor_tasks', [])
 
         with transaction.atomic():
             # 親タスクがある場合、レベルを自動設定
@@ -250,64 +228,14 @@ class TaskCreateSerializer(serializers.ModelSerializer):
                     )
                 TaskAssignment.objects.create(task=task, user_id=user_id)
 
-            # タスク依存関係を作成（循環依存チェック付き）
-            for predecessor_id in predecessor_tasks:
-                predecessor = Task.objects.filter(
-                    id=predecessor_id, project=task.project
-                ).first()
-                if not predecessor:
-                    raise serializers.ValidationError(
-                        f"先行タスクID {predecessor_id} が見つかりません"
-                    )
-
-                # 循環依存チェック
-                if self._creates_circular_dependency(predecessor_id, task.id):
-                    raise serializers.ValidationError(
-                        "循環依存が発生するため作成できません"
-                    )
-
-                TaskDependency.objects.create(
-                    predecessor=predecessor,
-                    successor=task,
-                    dependency_type='finish_to_start'
-                )
 
         return task
 
-    def _creates_circular_dependency(self, predecessor_id: int, successor_id: int) -> bool:
-        """循環依存チェック"""
-        visited = set()
-        stack = [successor_id]
-
-        while stack:
-            current_id = stack.pop()
-            if current_id in visited:
-                continue
-            visited.add(current_id)
-
-            if current_id == predecessor_id:
-                return True
-
-            # current_idが依存しているタスクを取得
-            dependencies = TaskDependency.objects.filter(
-                successor_id=current_id
-            ).values_list('predecessor_id', flat=True)
-
-            for dep_id in dependencies:
-                if dep_id not in visited:
-                    stack.append(dep_id)
-
-        return False
 
 
 class TaskUpdateSerializer(serializers.ModelSerializer):
     """タスク更新用シリアライザ"""
     assigned_users = serializers.ListField(
-        child=serializers.IntegerField(),
-        write_only=True,
-        required=False
-    )
-    predecessor_tasks = serializers.ListField(
         child=serializers.IntegerField(),
         write_only=True,
         required=False
@@ -319,7 +247,7 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
             'name', 'description', 'planned_start_date', 'planned_end_date',
             'actual_start_date', 'actual_end_date', 'estimated_hours',
             'actual_hours', 'progress_rate', 'priority', 'status',
-            'is_milestone', 'category', 'sort_order', 'assigned_users', 'predecessor_tasks'
+            'is_milestone', 'category', 'sort_order', 'assigned_users'
         ]
 
     def validate(self, data):
@@ -366,9 +294,8 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         from django.db import transaction
 
-        # assigned_usersとpredecessor_tasksを取り出し
+        # assigned_usersを取り出し
         assigned_users = validated_data.pop('assigned_users', None)
-        predecessor_tasks = validated_data.pop('predecessor_tasks', None)
 
         with transaction.atomic():
             # 基本フィールドを更新
@@ -399,31 +326,6 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
                 for user_id in assigned_users:
                     TaskAssignment.objects.create(task=instance, user_id=user_id)
 
-            # タスク依存関係を更新
-            if predecessor_tasks is not None:
-                # 既存の依存関係を削除（このタスクが後続タスクの場合）
-                instance.dependencies_as_successor.all().delete()
-                # 新しい依存関係を追加（循環依存チェック付き）
-                for predecessor_id in predecessor_tasks:
-                    predecessor = Task.objects.filter(
-                        id=predecessor_id, project=instance.project
-                    ).first()
-                    if not predecessor:
-                        raise serializers.ValidationError(
-                            f"先行タスクID {predecessor_id} が見つかりません"
-                        )
-
-                    # 循環依存チェック
-                    if self._creates_circular_dependency(predecessor_id, instance.id):
-                        raise serializers.ValidationError(
-                            "循環依存が発生するため更新できません"
-                        )
-
-                    TaskDependency.objects.create(
-                        predecessor=predecessor,
-                        successor=instance,
-                        dependency_type='finish_to_start'
-                    )
 
         # 更新後のインスタンスをリロード（関連データも含めて）
         instance.refresh_from_db()
@@ -433,36 +335,11 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
         instance = Task.objects.select_related(
             'project', 'parent_task'
         ).prefetch_related(
-            'assignments__user',
-            'dependencies_as_successor__predecessor',
-            'dependencies_as_predecessor__successor'
+            'assignments__user'
         ).get(id=instance.id)
 
         return instance
 
-    def _creates_circular_dependency(self, predecessor_id: int, successor_id: int) -> bool:
-        """循環依存チェック"""
-        visited = set()
-        stack = [successor_id]
-
-        while stack:
-            current_id = stack.pop()
-            if current_id in visited:
-                continue
-            visited.add(current_id)
-
-            if current_id == predecessor_id:
-                return True
-
-            dependencies = TaskDependency.objects.filter(
-                successor_id=current_id
-            ).values_list('predecessor_id', flat=True)
-
-            for dep_id in dependencies:
-                if dep_id not in visited:
-                    stack.append(dep_id)
-
-        return False
 
     def _update_parent_progress(self, task):
         """親タスクの進捗率を子タスクの平均から自動算出・更新"""

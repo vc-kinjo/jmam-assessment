@@ -99,40 +99,6 @@ class TaskAssignment(models.Model):
         return f"{self.user.username} - {self.task.name}"
 
 
-class TaskDependency(models.Model):
-    class Meta:
-        db_table = "tasks_dependency"
-        constraints = [
-            models.UniqueConstraint(fields=['predecessor', 'successor'], name='unique_predecessor_successor')
-        ]
-
-    DEPENDENCY_CHOICES = [
-        ('finish_to_start', 'Finish to Start'),
-        ('start_to_start', 'Start to Start'),
-        ('finish_to_finish', 'Finish to Finish'),
-        ('start_to_finish', 'Start to Finish'),
-    ]
-
-    predecessor = models.ForeignKey(
-        Task,
-        on_delete=models.CASCADE,
-        related_name='dependencies_as_predecessor'
-    )
-    successor = models.ForeignKey(
-        Task,
-        on_delete=models.CASCADE,
-        related_name='dependencies_as_successor'
-    )
-    dependency_type = models.CharField(
-        max_length=20,
-        choices=DEPENDENCY_CHOICES,
-        default='finish_to_start'
-    )
-    lag_days = models.IntegerField(default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.predecessor.name} -> {self.successor.name}"
 
 
 class TaskComment(models.Model):

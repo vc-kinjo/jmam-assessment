@@ -1,5 +1,5 @@
 import axios, { AxiosResponse } from 'axios';
-import { AuthResponse, LoginCredentials, User, Project, Task, GanttTask, GanttLink, PaginatedResponse } from '../types/index';
+import { AuthResponse, LoginCredentials, User, Project, Task, GanttTask, PaginatedResponse } from '../types/index';
 
 // APIクライアント設定
 const api = axios.create({
@@ -196,7 +196,7 @@ export const taskAPI = {
   },
 
   // ガントチャート用
-  getGanttData: async (projectId: number): Promise<AxiosResponse<{ data: GanttTask[]; links: GanttLink[] }>> => {
+  getGanttData: async (projectId: number): Promise<AxiosResponse<{ data: GanttTask[]; links: any[] }>> => {
     return api.get('/tasks/gantt_data/', { params: { project_id: projectId } });
   },
 
@@ -217,18 +217,6 @@ export const taskAPI = {
     return api.delete(`/tasks/${id}/remove_assignment/`, { data: { user_id: userId } });
   },
 
-  // タスク依存関係
-  getTaskDependencies: async (id: number): Promise<AxiosResponse<any>> => {
-    return api.get(`/tasks/${id}/dependencies/`);
-  },
-
-  addTaskDependency: async (id: number, data: any): Promise<AxiosResponse> => {
-    return api.post(`/tasks/${id}/dependencies/`, data);
-  },
-
-  removeTaskDependency: async (id: number, predecessorId: number): Promise<AxiosResponse> => {
-    return api.delete(`/tasks/${id}/remove_dependency/`, { data: { predecessor_id: predecessorId } });
-  },
 
   // タスクコメント
   getTaskComments: async (id: number): Promise<AxiosResponse<any[]>> => {

@@ -64,8 +64,6 @@ export interface Task {
   created_at: string;
   updated_at: string;
   assignments: TaskAssignment[];
-  dependencies_as_successor: TaskDependency[];
-  dependencies_as_predecessor: TaskDependency[];
   comments: TaskComment[];
   attachments: TaskAttachment[];
   subtask_count: number;
@@ -78,16 +76,6 @@ export interface TaskAssignment {
   assigned_at: string;
 }
 
-export interface TaskDependency {
-  id: number;
-  predecessor: number;
-  successor: number;
-  predecessor_name: string;
-  successor_name: string;
-  dependency_type: 'finish_to_start' | 'start_to_start' | 'finish_to_finish' | 'start_to_finish';
-  lag_days: number;
-  created_at: string;
-}
 
 export interface TaskComment {
   id: number;
@@ -119,13 +107,6 @@ export interface GanttTask {
   status: string;
 }
 
-export interface GanttLink {
-  id: number;
-  source: number;
-  target: number;
-  type: string;
-  lag: number;
-}
 
 export interface AuthResponse {
   user?: User;
