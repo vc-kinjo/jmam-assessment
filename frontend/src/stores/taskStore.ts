@@ -1,11 +1,11 @@
 import { create } from 'zustand';
-import { Task, GanttTask, GanttLink } from '../types/index';
+import { Task, GanttTask } from '../types/index';
 import { taskAPI } from '../services/api';
 
 interface TaskState {
   tasks: Task[];
   currentTask: Task | null;
-  ganttData: { data: GanttTask[]; links: GanttLink[] } | null;
+  ganttData: { data: GanttTask[]; links: any[] } | null;
   isLoading: boolean;
   error: string | null;
 
@@ -74,7 +74,6 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         console.log('- Task ID:', firstTask.id);
         console.log('- Task name:', firstTask.name);
         console.log('- Assignments:', firstTask.assignments);
-        console.log('- Dependencies as successor:', firstTask.dependencies_as_successor);
         console.log('- All task keys:', Object.keys(firstTask));
       }
 

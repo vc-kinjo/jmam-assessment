@@ -68,7 +68,6 @@ export default function ProjectDetailPage() {
 
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [dependencies, setDependencies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
@@ -197,7 +196,6 @@ export default function ProjectDetailPage() {
         const projectTasks = await fetchTasksByProject(projectId);
         console.log('Fetched tasks:', projectTasks);
         console.log('First task assignments (if exists):', projectTasks[0]?.assignments);
-        console.log('First task dependencies (if exists):', projectTasks[0]?.dependencies_as_successor);
 
         // コンポーネントがまだマウントされている場合のみ状態を更新
         if (isMounted) {
@@ -360,7 +358,7 @@ export default function ProjectDetailPage() {
     // モーダル状態をリセット
     setSelectedTask(null);
 
-    // バックグラウンドでサーバーから最新データを取得（担当者・先行タスク設定完了を待つ）
+    // バックグラウンドでサーバーから最新データを取得（担当者設定完了を待つ）
     setTimeout(async () => {
       try {
         console.log('handleTaskCreated: Fetching updated task list from server...');
@@ -368,19 +366,18 @@ export default function ProjectDetailPage() {
         if (response && Array.isArray(response)) {
           const sortedTasks = sortTasksHierarchically(response);
           setTasks(sortedTasks);
-          console.log('handleTaskCreated: Task list updated with assignments and dependencies');
+          console.log('handleTaskCreated: Task list updated with assignments');
         }
       } catch (error) {
         console.error('Failed to sync with server:', error);
       }
-    }, 500); // 担当者・先行タスク設定の完了を待つため遅延を増加
+    }, 500); // 担当者設定の完了を待つため遅延を増加
   };
 
   // タスク更新ハンドラー
   const handleTaskUpdated = async (updatedTask: Task) => {
     console.log('ProjectDetailPage: handleTaskUpdated called with:', updatedTask);
     console.log('ProjectDetailPage: updatedTask.assignments:', updatedTask.assignments);
-    console.log('ProjectDetailPage: updatedTask.dependencies_as_successor:', updatedTask.dependencies_as_successor);
 
     // ローカルのタスクリストも即座に更新
     setTasks(prevTasks => {
@@ -388,8 +385,6 @@ export default function ProjectDetailPage() {
       const targetTask = prevTasks.find(task => task.id === updatedTask.id);
       console.log('- Current assignments:', targetTask?.assignments);
       console.log('- New assignments:', updatedTask.assignments);
-      console.log('- Current dependencies:', targetTask?.dependencies_as_successor);
-      console.log('- New dependencies:', updatedTask.dependencies_as_successor);
 
       const updatedTasks = prevTasks.map(task =>
         task.id === updatedTask.id ? updatedTask : task
@@ -435,37 +430,22 @@ export default function ProjectDetailPage() {
       });
 
       // エラーメッセージを表示
-      let errorMessage = 'タスクの削除に失敗しました';
-
       if (error.response?.status === 400) {
-        // バックエンドからの詳細エラーメッセージを使用
         const errorData = error.response.data;
-        if (errorData?.error) {
-          errorMessage = `タスク削除エラー: ${errorData.error}`;
-          if (errorData.details) {
-            const details = errorData.details;
-            if (details.successor_dependencies > 0 || details.predecessor_dependencies > 0) {
-              errorMessage += `\n\n詳細:\n- 先行タスクとしての依存関係: ${details.predecessor_dependencies}件\n- 後続タスクとしての依存関係: ${details.successor_dependencies}件`;
-            }
-          }
-        } else {
-          errorMessage = `タスク「${deletedTask.name}」の削除に失敗しました。\n\n${errorData?.detail || 'バリデーションエラーが発生しました。'}`;
-        }
+        const errorMessage = errorData?.error || errorData?.detail || 'バリデーションエラーが発生しました';
+        alert(`タスク削除エラー: ${errorMessage}`);
       } else if (error.response?.status === 500) {
         const errorData = error.response.data;
-        errorMessage = `タスク「${deletedTask.name}」の削除に失敗しました。\n\nサーバーエラー（500）: ${errorData?.detail || 'サーバー内部でエラーが発生しました。'}`;
+        alert(`タスク「${deletedTask.name}」の削除に失敗しました。\n\nサーバーエラー（500）: ${errorData?.detail || 'サーバー内部でエラーが発生しました。'}`);
       } else if (error.response?.status === 404) {
-        errorMessage = `タスク「${deletedTask.name}」は既に削除されています。`;
+        alert(`タスク「${deletedTask.name}」は既に削除されています。`);
         // 404の場合はUIから削除
         setTasks(prevTasks => prevTasks.filter(task => task.id !== deletedTask.id));
         setShowTaskDetailModal(false);
-      } else if (error.response?.data?.detail) {
-        errorMessage = `タスク削除エラー: ${error.response.data.detail}`;
-      } else if (error.response?.data?.error) {
-        errorMessage = `タスク削除エラー: ${error.response.data.error}`;
+      } else {
+        const errorMessage = error.response?.data?.detail || error.response?.data?.error || 'タスクの削除に失敗しました';
+        alert(`タスク削除エラー: ${errorMessage}`);
       }
-
-      alert(errorMessage);
     }
   };
 
@@ -679,9 +659,6 @@ export default function ProjectDetailPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap truncate hidden sm:table-cell">
                       担当者
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap truncate hidden sm:table-cell">
-                      先行タスク
-                    </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap truncate">
                       操作
                     </th>
@@ -755,20 +732,6 @@ export default function ProjectDetailPage() {
                                   {(assignment.user.username || 'U')[0]}
                                 </div>
                                 <span>{assignment.user.username}</span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-gray-400 italic">未設定</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                        {task.dependencies_as_successor && task.dependencies_as_successor.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {task.dependencies_as_successor.map(dependency => (
-                              <div key={dependency.id} className="flex items-center space-x-1 bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
-                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                <span>{dependency.predecessor_name || `Task ${dependency.predecessor}`}</span>
                               </div>
                             ))}
                           </div>

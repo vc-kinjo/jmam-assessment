@@ -10,8 +10,6 @@ interface GanttChartProps {
   onTaskUpdate?: (taskId: number, updates: Partial<Task>) => void;
   onTaskCreate?: (task: Partial<Task>) => void;
   onTaskDelete?: (taskId: number) => void;
-  onLinkCreate?: (link: any) => void;
-  onLinkDelete?: (linkId: number) => void;
 }
 
 const GanttChart: React.FC<GanttChartProps> = ({
@@ -21,8 +19,6 @@ const GanttChart: React.FC<GanttChartProps> = ({
   onTaskUpdate,
   onTaskCreate,
   onTaskDelete,
-  onLinkCreate,
-  onLinkDelete,
 }) => {
   const ganttRef = useRef<HTMLDivElement>(null);
 
@@ -173,22 +169,6 @@ const GanttChart: React.FC<GanttChartProps> = ({
         });
       }
 
-      if (onLinkCreate) {
-        gantt.attachEvent('onAfterLinkAdd', function(id, link) {
-          const newLink = {
-            predecessor: parseInt(link.source),
-            successor: parseInt(link.target),
-            dependency_type: 'finish_to_start'
-          };
-          onLinkCreate(newLink);
-        });
-      }
-
-      if (onLinkDelete) {
-        gantt.attachEvent('onAfterLinkDelete', function(id) {
-          onLinkDelete(parseInt(id));
-        });
-      }
 
       // ガントチャート初期化
       gantt.init(ganttRef.current);

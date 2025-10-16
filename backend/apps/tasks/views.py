@@ -2,11 +2,11 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Q, Prefetch
-from .models import Task, TaskAssignment, TaskDependency, TaskComment, TaskAttachment
+from .models import Task, TaskAssignment, TaskComment, TaskAttachment
 from .serializers import (
     TaskSerializer, TaskListSerializer, TaskGanttSerializer,
     TaskCreateSerializer, TaskUpdateSerializer, TaskAssignmentSerializer,
-    TaskDependencySerializer, TaskCommentSerializer, TaskAttachmentSerializer
+    TaskCommentSerializer, TaskAttachmentSerializer
 )
 
 
@@ -34,9 +34,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         ).prefetch_related(
             'assignments__user',
             'subtasks',
-            'comments__user',
-            'dependencies_as_successor__predecessor',
-            'dependencies_as_predecessor__successor'
+            'comments__user'
         )
 
         # project_idパラメータによるフィルタリング
@@ -79,25 +77,9 @@ class TaskViewSet(viewsets.ModelViewSet):
         tasks = self.get_queryset().filter(project_id=project_id)
         serializer = self.get_serializer(tasks, many=True)
 
-        # DHtmlX Gantt用のリンクデータを作成
-        links = []
-        dependencies = TaskDependency.objects.filter(
-            predecessor__project_id=project_id,
-            successor__project_id=project_id
-        )
-
-        for dep in dependencies:
-            links.append({
-                'id': dep.id,
-                'source': dep.predecessor_id,
-                'target': dep.successor_id,
-                'type': dep.dependency_type,
-                'lag': dep.lag_days
-            })
-
         return Response({
             'data': serializer.data,
-            'links': links
+            'links': []  # 依存関係機能を削除したので空配列
         })
 
     def update(self, request, *args, **kwargs):
@@ -141,21 +123,6 @@ class TaskViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # 依存関係がある場合の処理
-        predecessor_dependencies = instance.dependencies_as_predecessor.count()
-        successor_dependencies = instance.dependencies_as_successor.count()
-
-        if predecessor_dependencies > 0 or successor_dependencies > 0:
-            return Response(
-                {
-                    'error': 'このタスクには依存関係が設定されているため削除できません。先に依存関係を削除してください。',
-                    'details': {
-                        'successor_dependencies': successor_dependencies,
-                        'predecessor_dependencies': predecessor_dependencies
-                    }
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
 
         try:
             self.perform_destroy(instance)
@@ -220,47 +187,6 @@ class TaskViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-    @action(detail=True, methods=['get', 'post'])
-    def dependencies(self, request, pk=None):
-        """タスク依存関係管理"""
-        task = self.get_object()
-
-        if request.method == 'GET':
-            predecessors = task.dependencies_as_successor.all()
-            successors = task.dependencies_as_predecessor.all()
-            return Response({
-                'predecessors': TaskDependencySerializer(predecessors, many=True).data,
-                'successors': TaskDependencySerializer(successors, many=True).data
-            })
-
-        elif request.method == 'POST':
-            serializer = TaskDependencySerializer(data=request.data)
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    @action(detail=True, methods=['delete'])
-    def remove_dependency(self, request, pk=None):
-        """先行タスク削除"""
-        task = self.get_object()
-        predecessor_id = request.data.get('predecessor_id')
-
-        if not predecessor_id:
-            return Response(
-                {'error': 'predecessor_idが必要です。'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        dependency = task.dependencies_as_successor.filter(predecessor_id=predecessor_id).first()
-        if dependency:
-            dependency.delete()
-            return Response({'message': '先行タスクを削除しました。'})
-        else:
-            return Response(
-                {'error': '指定された先行タスクが見つかりません。'},
-                status=status.HTTP_404_NOT_FOUND
-            )
 
     @action(detail=True, methods=['get', 'post'])
     def comments(self, request, pk=None):
@@ -355,48 +281,3 @@ class TaskViewSet(viewsets.ModelViewSet):
         except ProjectMember.DoesNotExist:
             return False
 
-    @action(detail=False, methods=['get'])
-    def valid_predecessors(self, request):
-        """有効な先行タスク一覧を取得"""
-        task_id = request.query_params.get('task_id')
-        if not task_id:
-            return Response(
-                {'error': 'task_idが必要です。'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            task = self.get_queryset().get(id=task_id)
-        except Task.DoesNotExist:
-            return Response(
-                {'error': 'タスクが見つかりません。'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        valid_predecessors = []
-
-        if task.level == 0:
-            # ルートタスクの場合、同じプロジェクト内の他のルートタスクが対象
-            root_tasks = self.get_queryset().filter(
-                project=task.project,
-                level=0
-            ).exclude(id=task.id)
-            valid_predecessors = list(root_tasks)
-        else:
-            # サブタスクの場合、同じ親を持つタスクと上位階層のタスクが対象
-            if task.parent_task:
-                # 同じ親を持つ兄弟タスク
-                siblings = self.get_queryset().filter(
-                    parent_task=task.parent_task
-                ).exclude(id=task.id)
-                valid_predecessors.extend(list(siblings))
-
-                # 親タスクとその祖先
-                current_parent = task.parent_task
-                while current_parent:
-                    valid_predecessors.append(current_parent)
-                    current_parent = current_parent.parent_task
-
-        # シリアライズして返す
-        serializer = TaskListSerializer(valid_predecessors, many=True)
-        return Response(serializer.data)

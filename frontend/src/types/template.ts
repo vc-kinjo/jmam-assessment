@@ -23,17 +23,11 @@ export interface TemplateTask {
   priority: 'high' | 'medium' | 'low';
   category?: string;
   is_milestone: boolean;
-  dependencies: TaskDependencyTemplate[];
   sort_order: number;
   start_offset_days: number;
   duration_days: number;
 }
 
-export interface TaskDependencyTemplate {
-  predecessor_id: string;
-  dependency_type: 'finish_to_start' | 'start_to_start' | 'finish_to_finish' | 'start_to_finish';
-  lag_days: number;
-}
 
 export interface ProjectTemplateCreate {
   name: string;
@@ -54,7 +48,6 @@ export interface TemplateTaskCreate {
   is_milestone: boolean;
   start_offset_days: number;
   duration_days: number;
-  dependencies: TaskDependencyTemplate[];
   sort_order: number;
 }
 
@@ -123,7 +116,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 40,
         priority: 'high' as const,
         is_milestone: false,
-        dependencies: [],
         sort_order: 1
       },
       {
@@ -135,7 +127,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 56,
         priority: 'high' as const,
         is_milestone: false,
-        dependencies: [],
         sort_order: 2
       },
       {
@@ -147,7 +138,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 112,
         priority: 'medium' as const,
         is_milestone: false,
-        dependencies: [],
         sort_order: 3
       },
       {
@@ -159,7 +149,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 112,
         priority: 'medium' as const,
         is_milestone: false,
-        dependencies: [],
         sort_order: 4
       },
       {
@@ -171,7 +160,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 40,
         priority: 'high' as const,
         is_milestone: false,
-        dependencies: [],
         sort_order: 5
       },
       {
@@ -183,7 +171,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 16,
         priority: 'high' as const,
         is_milestone: true,
-        dependencies: [],
         sort_order: 6
       },
     ]
@@ -203,7 +190,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 56,
         priority: 'high' as const,
         is_milestone: false,
-        dependencies: [],
         sort_order: 1
       },
       {
@@ -215,7 +201,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 80,
         priority: 'medium' as const,
         is_milestone: false,
-        dependencies: [],
         sort_order: 2
       },
       {
@@ -227,7 +212,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 168,
         priority: 'medium' as const,
         is_milestone: false,
-        dependencies: [],
         sort_order: 3
       },
       {
@@ -239,7 +223,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 168,
         priority: 'medium' as const,
         is_milestone: false,
-        dependencies: [],
         sort_order: 4
       },
       {
@@ -251,7 +234,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 56,
         priority: 'high' as const,
         is_milestone: false,
-        dependencies: [],
         sort_order: 5
       },
       {
@@ -263,7 +245,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 24,
         priority: 'medium' as const,
         is_milestone: false,
-        dependencies: [],
         sort_order: 6
       },
       {
@@ -275,7 +256,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 8,
         priority: 'high' as const,
         is_milestone: true,
-        dependencies: [],
         sort_order: 7
       },
     ]
@@ -295,7 +275,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 24,
         priority: 'high' as const,
         is_milestone: false,
-        dependencies: [],
         sort_order: 1
       },
       {
@@ -307,7 +286,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 16,
         priority: 'high' as const,
         is_milestone: false,
-        dependencies: [],
         sort_order: 2
       },
       {
@@ -319,7 +297,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 28,
         priority: 'high' as const,
         is_milestone: false,
-        dependencies: [],
         sort_order: 3
       },
       {
@@ -331,7 +308,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 84,
         priority: 'medium' as const,
         is_milestone: false,
-        dependencies: [],
         sort_order: 4
       },
       {
@@ -343,7 +319,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 24,
         priority: 'high' as const,
         is_milestone: false,
-        dependencies: [],
         sort_order: 5
       },
       {
@@ -355,7 +330,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 8,
         priority: 'high' as const,
         is_milestone: true,
-        dependencies: [],
         sort_order: 6
       },
       {
@@ -367,7 +341,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 16,
         priority: 'low' as const,
         is_milestone: false,
-        dependencies: [],
         sort_order: 7
       },
     ]
@@ -387,7 +360,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 40,
         priority: 'high' as const,
         is_milestone: false,
-        dependencies: [],
         sort_order: 1
       },
       {
@@ -399,7 +371,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 80,
         priority: 'medium' as const,
         is_milestone: false,
-        dependencies: [],
         sort_order: 2
       },
       {
@@ -411,7 +382,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 24,
         priority: 'medium' as const,
         is_milestone: false,
-        dependencies: [],
         sort_order: 3
       },
       {
@@ -423,7 +393,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 120,
         priority: 'high' as const,
         is_milestone: false,
-        dependencies: [],
         sort_order: 4
       },
       {
@@ -435,7 +404,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 28,
         priority: 'medium' as const,
         is_milestone: false,
-        dependencies: [],
         sort_order: 5
       },
       {
@@ -447,7 +415,6 @@ export const PREDEFINED_TEMPLATES = [
         estimated_hours: 24,
         priority: 'low' as const,
         is_milestone: true,
-        dependencies: [],
         sort_order: 6
       },
     ]

@@ -39,7 +39,6 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
     estimated_hours: '8',
     priority: 'medium' as 'low' | 'medium' | 'high',
     category: '',
-    predecessor_tasks: [] as number[],
     is_milestone: false,
     assigned_users: [] as number[]
   });
@@ -92,7 +91,6 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
         estimated_hours: '8',
         priority: 'medium',
         category: '',
-        predecessor_tasks: [],
         is_milestone: false,
         assigned_users: []
       });
@@ -126,14 +124,6 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
     }));
   };
 
-  const handlePredecessorSelection = (taskId: number) => {
-    setFormData(prev => ({
-      ...prev,
-      predecessor_tasks: prev.predecessor_tasks.includes(taskId)
-        ? prev.predecessor_tasks.filter(id => id !== taskId)
-        : [...prev.predecessor_tasks, taskId]
-    }));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,12 +149,10 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
         category: formData.category,
         is_milestone: formData.is_milestone,
         status: 'not_started',
-        predecessor_tasks: formData.predecessor_tasks,
         assigned_users: formData.assigned_users
       };
 
       console.log('TaskCreateModal: Creating task with data:', taskData);
-      console.log('TaskCreateModal: Predecessor tasks:', formData.predecessor_tasks);
       console.log('TaskCreateModal: Assigned users:', formData.assigned_users);
 
       // 空の値を削除
@@ -194,7 +182,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
 
       console.log('TaskCreateModal: Task created successfully:', newTask);
 
-      // 担当者・先行タスク設定は既にTaskCreateSerializerで処理されているので削除
+      // 担当者設定は既にTaskCreateSerializerで処理されているので削除
       // newTaskには既に完全なデータが含まれている
       console.log('TaskCreateModal: Task created with all data:', newTask);
       let finalTask = newTask;
@@ -221,13 +209,12 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
 
   if (!isOpen) return null;
 
-  // プロジェクト内のタスク一覧（先行タスク選択用）
+  // プロジェクト内のタスク一覧（親タスク選択用）
   // projectTasksプロパティを優先し、フォールバックとしてTaskStoreのtasksを使用
   const availableTasks = projectTasks.length > 0
     ? projectTasks
     : tasks.filter(task => task.project === projectId);
 
-  // console.log('TaskCreateModal: Available tasks for predecessors:', availableTasks);
   // console.log('TaskCreateModal: Current users state:', users);
   // console.log('TaskCreateModal: Users length:', users.length);
 
@@ -408,33 +395,6 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
             />
             </div>
 
-            {/* 先行タスク */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                先行タスク
-              </label>
-              <select
-                value={formData.predecessor_tasks[0] || ''}
-                onChange={(e) => {
-                  const taskId = e.target.value ? parseInt(e.target.value) : null;
-                  setFormData(prev => ({
-                    ...prev,
-                    predecessor_tasks: taskId ? [taskId] : []
-                  }));
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">先行タスクなし</option>
-                {availableTasks.map(task => (
-                  <option key={task.id} value={task.id}>
-                    {'  '.repeat((task.level || 0))}{task.name} (レベル {task.level || 0})
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                このタスクの前に完了する必要があるタスクを選択
-              </p>
-            </div>
 
             {/* マイルストーン */}
             <div className="flex items-center">

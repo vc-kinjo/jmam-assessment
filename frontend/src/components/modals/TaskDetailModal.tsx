@@ -65,7 +65,6 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     category: '',
     is_milestone: false,
     assigned_users: [] as number[],
-    predecessor_tasks: [] as number[]
   });
 
   // ユーザー一覧を取得（availableUsersが提供されている場合はそれを使用、それ以外はグローバルキャッシュ使用）
@@ -229,8 +228,6 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       console.log('- status:', storeCurrentTask.status);
       console.log('- is_milestone:', storeCurrentTask.is_milestone);
       console.log('- assignments:', storeCurrentTask.assignments);
-      console.log('- dependencies_as_successor:', storeCurrentTask.dependencies_as_successor);
-
       setCurrentTask(storeCurrentTask);
 
       // 担当ユーザーIDの配列を作成
@@ -238,13 +235,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         ? storeCurrentTask.assignments.map(assignment => assignment.user.id)
         : [];
 
-      // 先行タスクIDの配列を作成
-      const predecessorTaskIds = Array.isArray(storeCurrentTask.dependencies_as_successor)
-        ? storeCurrentTask.dependencies_as_successor.map(dep => dep.predecessor)
-        : [];
-
       console.log('TaskDetailModal: Assigned user IDs:', assignedUserIds);
-      console.log('TaskDetailModal: Predecessor task IDs:', predecessorTaskIds);
 
       const formDataToSet = {
         name: storeCurrentTask.name || '',
@@ -260,8 +251,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         status: storeCurrentTask.status || 'not_started',
         category: storeCurrentTask.category || '',
         is_milestone: storeCurrentTask.is_milestone || false,
-        assigned_users: assignedUserIds,
-        predecessor_tasks: predecessorTaskIds
+        assigned_users: assignedUserIds
       };
 
       console.log('TaskDetailModal: Setting form data:', formDataToSet);
@@ -285,13 +275,6 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     }));
   };
 
-  const handlePredecessorSelection = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedOptions = Array.from(event.target.selectedOptions, option => parseInt(option.value));
-    setFormData(prev => ({
-      ...prev,
-      predecessor_tasks: selectedOptions
-    }));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -304,8 +287,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     }
 
     console.log('TaskDetailModal: Form data at submit:', {
-      assigned_users: formData.assigned_users,
-      predecessor_tasks: formData.predecessor_tasks
+      assigned_users: formData.assigned_users
     });
 
     console.log('TaskDetailModal: Current task assignments:', displayTask.assignments);
@@ -329,27 +311,21 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         status: formData.status,
         category: formData.category ? formData.category.trim() : '',
         is_milestone: formData.is_milestone,
-        assigned_users: formData.assigned_users,
-        predecessor_tasks: formData.predecessor_tasks
+        assigned_users: formData.assigned_users
       };
 
       // 空文字列はnullではなく空文字列として送信（Django側で適切に処理）
       console.log('TaskDetailModal: Updating task with data:', updateData);
 
-      // 担当者と先行タスクの変更を専用APIで処理
+      // 担当者の変更を専用APIで処理
       const originalAssignments = Array.isArray(displayTask.assignments)
         ? displayTask.assignments.map(a => a.user.id)
-        : [];
-      const originalPredecessors = Array.isArray(displayTask.dependencies_as_successor)
-        ? displayTask.dependencies_as_successor.map(d => d.predecessor)
         : [];
 
       console.log('TaskDetailModal: Original assignments:', originalAssignments);
       console.log('TaskDetailModal: New assignments:', updateData.assigned_users);
-      console.log('TaskDetailModal: Original predecessors:', originalPredecessors);
-      console.log('TaskDetailModal: New predecessors:', updateData.predecessor_tasks);
 
-      // 一回のリクエストで全てを更新（基本情報 + 担当者 + 先行タスク）
+      // 一回のリクエストで全てを更新（基本情報 + 担当者）
       console.log('TaskDetailModal: Updating task with complete data:', updateData);
 
       const updatedTask = await updateTask(displayTask.id, updateData);
@@ -362,22 +338,17 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       setCurrentTask(updatedTask);
 
       // フォームデータも更新された内容で同期
-      if (updatedTask.assignments && updatedTask.dependencies_as_successor) {
+      if (updatedTask.assignments) {
         const updatedAssignedUserIds = Array.isArray(updatedTask.assignments)
           ? updatedTask.assignments.map(assignment => assignment.user.id)
-          : [];
-        const updatedPredecessorTaskIds = Array.isArray(updatedTask.dependencies_as_successor)
-          ? updatedTask.dependencies_as_successor.map(dep => dep.predecessor)
           : [];
 
         console.log('TaskDetailModal: Updating form data with server response');
         console.log('- Updated assigned user IDs:', updatedAssignedUserIds);
-        console.log('- Updated predecessor task IDs:', updatedPredecessorTaskIds);
 
         setFormData(prev => ({
           ...prev,
-          assigned_users: updatedAssignedUserIds,
-          predecessor_tasks: updatedPredecessorTaskIds
+          assigned_users: updatedAssignedUserIds
         }));
       }
 
@@ -474,7 +445,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     );
   }
 
-  // プロジェクト内のタスク一覧（先行タスク選択用）
+  // プロジェクト内のタスク一覧
   const projectTasks = Array.isArray(allTasks) && displayTask ? allTasks.filter(t =>
     t.project && displayTask.project && t.project === displayTask.project &&
     t.id !== displayTask.id
@@ -495,10 +466,6 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     });
   }
 
-  // 先行タスク情報を取得
-  const predecessorTasksInfo = Array.isArray(projectTasks) ? projectTasks.filter(t =>
-    formData.predecessor_tasks.includes(t.id)
-  ) : [];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -812,68 +779,6 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     )}
                   </div>
 
-                  {/* 先行タスク選択 */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      先行タスク
-                    </label>
-
-                    {/* 現在の先行タスクリスト */}
-                    {predecessorTasksInfo.length > 0 && (
-                      <div className="mb-3">
-                        <div className="space-y-2">
-                          {predecessorTasksInfo.map(predecessor => (
-                            <div key={predecessor.id} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded">
-                              <span className="text-sm text-gray-900">{predecessor.name}</span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setFormData(prev => ({
-                                    ...prev,
-                                    predecessor_tasks: prev.predecessor_tasks.filter(id => id !== predecessor.id)
-                                  }));
-                                }}
-                                className="text-red-600 hover:text-red-800 text-sm"
-                              >
-                                削除
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* 先行タスク追加プルダウン */}
-                    {Array.isArray(projectTasks) && projectTasks.length > 0 && projectTasks.filter(task => !formData.predecessor_tasks.includes(task.id)).length > 0 ? (
-                      <div>
-                        <select
-                          onChange={(e) => {
-                            const taskId = parseInt(e.target.value);
-                            if (taskId && !formData.predecessor_tasks.includes(taskId)) {
-                              setFormData(prev => ({
-                                ...prev,
-                                predecessor_tasks: [...prev.predecessor_tasks, taskId]
-                              }));
-                              e.target.value = '';
-                            }
-                          }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          defaultValue=""
-                        >
-                          <option value="">-- 先行タスクを追加 --</option>
-                          {projectTasks
-                            .filter(task => !formData.predecessor_tasks.includes(task.id))
-                            .map(task => (
-                              <option key={task.id} value={task.id}>
-                                {task.name}
-                              </option>
-                            ))}
-                        </select>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500 italic">利用可能な先行タスクがありません</p>
-                    )}
-                  </div>
                 </div>
               </div>
 
@@ -959,26 +864,6 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     </div>
                   </div>
 
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">先行タスク</h3>
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      {displayTask.dependencies_as_successor && displayTask.dependencies_as_successor.length > 0 ? (
-                        <div className="space-y-2">
-                          {displayTask.dependencies_as_successor.map(dependency => (
-                            <div key={dependency.id} className="flex items-center space-x-2">
-                              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                              <span className="text-gray-900">{dependency.predecessor_name}</span>
-                              <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">
-                                ID: {dependency.predecessor}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-gray-500">先行タスクが設定されていません</p>
-                      )}
-                    </div>
-                  </div>
                 </div>
 
                 <div className="space-y-4">
