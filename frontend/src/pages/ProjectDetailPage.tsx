@@ -327,7 +327,34 @@ export default function ProjectDetailPage() {
       console.log('タスクが削除されました:', taskToDelete.name);
     } catch (err: any) {
       console.error('タスク削除エラー:', err.message);
-      alert('タスクの削除に失敗しました: ' + err.message);
+      console.error('エラー詳細:', {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message
+      });
+
+      // エラーメッセージを表示
+      if (err.response?.status === 400) {
+        const errorData = err.response.data;
+        const errorMessage = errorData?.error || errorData?.detail || 'バリデーションエラーが発生しました';
+
+        // 子タスクがある場合の特別なメッセージ
+        if (errorMessage.includes('子タスク') || errorMessage.includes('child') || errorMessage.includes('children')) {
+          alert(`タスク削除エラー: 子タスクがあるため削除できません`);
+        } else {
+          alert(`タスク削除エラー: ${errorMessage}`);
+        }
+      } else if (err.response?.status === 500) {
+        const errorData = err.response.data;
+        alert(`タスク「${taskToDelete.name}」の削除に失敗しました。\n\nサーバーエラー（500）: ${errorData?.detail || 'サーバー内部でエラーが発生しました。'}`);
+      } else if (err.response?.status === 404) {
+        alert(`タスク「${taskToDelete.name}」は既に削除されています。`);
+        // 404の場合はUIから削除
+        setTasks(prevTasks => prevTasks.filter(task => task.id !== taskToDelete.id));
+      } else {
+        const errorMessage = err.response?.data?.detail || err.response?.data?.error || 'タスクの削除に失敗しました';
+        alert(`タスク削除エラー: ${errorMessage}`);
+      }
     } finally {
       setShowDeleteDialog(false);
       setTaskToDelete(null);
